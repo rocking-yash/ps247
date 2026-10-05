@@ -1,11 +1,13 @@
 import Link from "next/link";
 import AmbientSky from "@/components/landing/AmbientSky";
+import ScrollMotion from "@/components/landing/ScrollMotion";
 import SiteNav from "@/components/landing/SiteNav";
+import Count from "@/components/Count";
 import EventRow, { EventTableHead, TH, TD } from "@/components/dashboard/EventRow";
 import { getLandingData } from "@/lib/landing";
 import { CORRECT_RESPONSE } from "@/lib/models";
 import { DRONE_LABELS, RESPONSE_LABELS, SCORING } from "@/lib/constants";
-import { formatDateTime, formatScore } from "@/lib/format";
+import { formatDateTime } from "@/lib/format";
 
 // Shows live figures from the training database — never prerender.
 export const dynamic = "force-dynamic";
@@ -50,21 +52,24 @@ const SKILLS = [
 ];
 
 const COMPOSITE = [
-  ["Detection", `${weights.detection}`],
-  ["Classification", `${weights.classification}`],
-  ["Response", `${weights.response}`],
-  ["Each false positive", `−${SCORING.falsePositivePenalty}`],
-  ["Each missed contact", `−${SCORING.missedPenalty}`],
+  ["Detection", weights.detection],
+  ["Classification", weights.classification],
+  ["Response", weights.response],
+  ["Each false positive", -SCORING.falsePositivePenalty],
+  ["Each missed contact", -SCORING.missedPenalty],
 ];
 
 const SECTION = "scroll-mt-14 border-b border-rule py-16 sm:py-20";
 const WRAP = "mx-auto w-full max-w-5xl px-6";
-const H2 = "text-2xl font-semibold";
+// Section headings pin under the nav while their section scrolls past. The
+// pseudo-element only widens the paper behind the pinned heading; it takes
+// up no space.
+const H2 = "text-2xl font-semibold sticky top-14 z-10 bg-paper before:absolute before:inset-x-0 before:-inset-y-3 before:-z-10 before:bg-paper before:content-['']";
 const LEAD = "mt-2 max-w-prose text-ink/70";
 
 function Figure({ label, value, note }) {
   return (
-    <div className="border-t border-ink pt-3">
+    <div data-rule="top" className="border-t border-ink pt-3">
       <dt className="text-sm text-ink/70">{label}</dt>
       <dd className="mt-1 text-5xl font-semibold">{value}</dd>
       <dd className="mt-1 text-sm text-ink/70">{note}</dd>
@@ -92,13 +97,15 @@ export default async function Home() {
 
       <SiteNav sections={SECTIONS} />
 
+      <ScrollMotion />
+
       <main>
         <section
           id="top"
           className="relative flex min-h-svh flex-col justify-end bg-panel pt-14 text-readout [--focus:var(--color-readout)]"
         >
           <AmbientSky />
-          <div className={`${WRAP} relative pb-14 sm:pb-20`}>
+          <div data-parallax className={`${WRAP} relative pb-14 sm:pb-20`}>
             <h1 className="resolve max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl sm:leading-tight">
               Counter-drone training that grades the decision, not the aim.
             </h1>
@@ -117,16 +124,16 @@ export default async function Home() {
           </div>
         </section>
 
-        <section id="skills" className={SECTION}>
+        <section id="skills" data-rule="bottom" className={SECTION}>
           <div className={WRAP}>
-            <h2 className={H2}>Three skills, graded separately</h2>
-            <p className={LEAD}>
+            <h2 data-reveal className={H2}>Three skills, graded separately</h2>
+            <p data-reveal className={LEAD}>
               Each contact is worked in this order, and each step has its own score. A trainee who
               spots everything but responds wrongly shows up as exactly that.
             </p>
-            <ol className="mt-10 grid gap-10 md:grid-cols-3">
+            <ol data-reveal-rows className="mt-10 grid gap-10 md:grid-cols-3">
               {SKILLS.map((skill, i) => (
-                <li key={skill.name} className="border-t border-ink pt-3">
+                <li key={skill.name} data-rule="top" className="border-t border-ink pt-3">
                   <h3 className="flex items-baseline gap-3 text-xl font-semibold">
                     <span aria-hidden="true" className="text-ink/50">
                       {i + 1}
@@ -136,7 +143,7 @@ export default async function Home() {
                   <p className="mt-3">{skill.measures}</p>
                   <p className="mt-3 text-sm text-ink/70">{skill.scored}</p>
                   <p className="mt-3 text-sm">
-                    <span className="font-semibold">{skill.weight}</span> of 100 points
+                    <span className="font-semibold"><Count value={skill.weight} onView /></span> of 100 points
                   </p>
                 </li>
               ))}
@@ -144,10 +151,10 @@ export default async function Home() {
           </div>
         </section>
 
-        <section id="decision-table" className={SECTION}>
+        <section id="decision-table" data-rule="bottom" className={SECTION}>
           <div className={WRAP}>
-            <h2 className={H2}>The decision table is the marking scheme</h2>
-            <p className={LEAD}>
+            <h2 data-reveal className={H2}>The decision table is the marking scheme</h2>
+            <p data-reveal className={LEAD}>
               A response is marked against this table and nothing else. It is plain data in the
               source, not a trained model, so an instructor can read, question and change it.
             </p>
@@ -160,7 +167,7 @@ export default async function Home() {
                     <th className={`${TH} pr-0`}>Reason</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody data-reveal-rows>
                   {Object.entries(CORRECT_RESPONSE).map(([droneType, response]) => (
                     <tr key={droneType}>
                       <td className={`${TD} whitespace-nowrap`}>{DRONE_LABELS[droneType]}</td>
@@ -172,16 +179,19 @@ export default async function Home() {
               </table>
             </div>
 
-            <h3 className="mt-12 text-lg font-semibold">How the composite score is built</h3>
-            <p className={LEAD}>The headline number for a session, from 0 to 100.</p>
+            <h3 data-reveal className="mt-12 text-lg font-semibold">How the composite score is built</h3>
+            <p data-reveal className={LEAD}>The headline number for a session, from 0 to 100.</p>
             <table className="mt-4 w-full max-w-sm text-left">
-              <tbody>
+              <tbody data-reveal-rows>
                 {COMPOSITE.map(([label, points]) => (
                   <tr key={label}>
                     <th scope="row" className="border-b border-rule py-2 pr-5 font-normal">
                       {label}
                     </th>
-                    <td className="border-b border-rule py-2 text-right font-semibold">{points}</td>
+                    <td className="border-b border-rule py-2 text-right font-semibold">
+                      {points < 0 && "−"}
+                      <Count value={Math.abs(points)} onView />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -189,39 +199,39 @@ export default async function Home() {
           </div>
         </section>
 
-        <section id="live-figures" className={SECTION}>
+        <section id="live-figures" data-rule="bottom" className={SECTION}>
           <div className={WRAP}>
-            <h2 className={H2}>What has been recorded so far</h2>
+            <h2 data-reveal className={H2}>What has been recorded so far</h2>
             {!data.ok && (
-              <p className={LEAD}>
+              <p data-reveal className={LEAD}>
                 The training database could not be reached just now, so no figures are shown.
               </p>
             )}
             {data.ok && !hasSessions && (
-              <p className={LEAD}>
+              <p data-reveal className={LEAD}>
                 No sessions have been recorded yet. The figures appear here after the first one is
                 run.
               </p>
             )}
             {hasSessions && (
               <>
-                <p className={LEAD}>
+                <p data-reveal className={LEAD}>
                   Live from the training database, read at {formatDateTime(data.readAt)}.
                 </p>
-                <dl className="mt-10 grid gap-10 sm:grid-cols-3">
+                <dl data-reveal-rows className="mt-10 grid gap-10 sm:grid-cols-3">
                   <Figure
                     label="Sessions recorded"
-                    value={data.stats.sessions}
+                    value={<Count value={data.stats.sessions} onView />}
                     note="Every run of the simulator, including misses."
                   />
                   <Figure
                     label="Average composite"
-                    value={formatScore(data.stats.avgComposite)}
+                    value={<Count value={data.stats.avgComposite} onView />}
                     note="Out of 100, across completed sessions."
                   />
                   <Figure
                     label="False positives"
-                    value={data.stats.falsePositives}
+                    value={<Count value={data.stats.falsePositives} onView />}
                     note="Civilian decoys that were engaged."
                   />
                 </dl>
@@ -230,10 +240,10 @@ export default async function Home() {
           </div>
         </section>
 
-        <section id="verdicts" className={SECTION}>
+        <section id="verdicts" data-rule="bottom" className={SECTION}>
           <div className={WRAP}>
-            <h2 className={H2}>Every contact ends in a verdict</h2>
-            <p className={LEAD}>
+            <h2 data-reveal className={H2}>Every contact ends in a verdict</h2>
+            <p data-reveal className={LEAD}>
               This is the record an instructor reviews: what appeared, how fast it was seen, what
               the trainee called it and what they did about it.
               {hasSessions && " The rows below are recent contacts from real sessions, with trainee names withheld."}
@@ -242,7 +252,7 @@ export default async function Home() {
               <div className="relative mt-8 overflow-x-auto">
                 <table className="w-full min-w-[52rem] text-left">
                   <EventTableHead />
-                  <tbody>
+                  <tbody data-reveal-rows>
                     {data.sample.map((event, i) => (
                       <EventRow key={i} event={event} />
                     ))}
@@ -250,7 +260,7 @@ export default async function Home() {
                 </table>
               </div>
             ) : (
-              <p className="mt-8 border-y border-rule py-6">
+              <p data-reveal className="mt-8 border-y border-rule py-6">
                 {data.ok
                   ? "No contacts have been graded yet."
                   : "The sample could not be loaded because the training database is unreachable."}
@@ -261,18 +271,19 @@ export default async function Home() {
 
         <section
           id="randomisation"
+          data-rule="bottom"
           className={SECTION}
         >
           <div className={WRAP}>
-            <h2 className={H2}>No two sessions are the same</h2>
-            <p className={LEAD}>
+            <h2 data-reveal className={H2}>No two sessions are the same</h2>
+            <p data-reveal className={LEAD}>
               Each session draws a fresh random seed. Together with the difficulty level, the seed
               decides how many contacts there are, which types, where each one appears and when
               the swarm arrives. A trainee
               cannot learn a layout by heart, because the layout they practised on is not issued
               again.
             </p>
-            <p className="mt-3 max-w-prose text-ink/70">
+            <p data-reveal className="mt-3 max-w-prose text-ink/70">
               The seed and level are stored with the session, so the same numbers regenerate
               exactly what the trainee saw when an instructor reviews it.
             </p>
@@ -294,13 +305,13 @@ export default async function Home() {
                       ))}
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody data-reveal-rows>
                     {data.layouts.map((layout) => (
                       <tr key={layout.seed}>
                         <td className="border-b border-rule py-3 pr-5">{layout.seed}</td>
-                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5">{layout.level}</td>
-                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5">{layout.contacts}</td>
-                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5">{layout.swarmSize}</td>
+                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5"><Count value={layout.level} onView /></td>
+                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5"><Count value={layout.contacts} onView /></td>
+                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5"><Count value={layout.swarmSize} onView /></td>
                         <td className="whitespace-nowrap border-b border-rule py-3 pr-5">
                           {(layout.swarmAtMs / 1000).toFixed(1)} s
                         </td>

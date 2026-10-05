@@ -14,10 +14,13 @@ const NIGHT = '#0b121a';
 const PITCH = 0.42;
 
 // Slow elliptical loops in front of the observer. Metres and seconds.
+// Every loop stays within 25° of straight ahead at its widest and nearest,
+// and the view is never narrower than ±33° (see ObserverCamera), so no
+// contact reaches the edge of the frame at any window shape.
 const PATHS = [
-  { type: 'quad_recon', centre: [0, -75], radius: [55, 22], altitude: 34, period: 70, phase: 0.4, direction: 1 },
-  { type: 'fixedwing_kamikaze', centre: [-25, -120], radius: [90, 30], altitude: 85, period: 95, phase: 2.6, direction: -1 },
-  { type: 'decoy_civilian', centre: [35, -55], radius: [30, 12], altitude: 14, period: 55, phase: 4.4, direction: 1 },
+  { type: 'quad_recon', centre: [0, -95], radius: [34, 18], altitude: 34, period: 70, phase: 0.4, direction: 1 },
+  { type: 'fixedwing_kamikaze', centre: [-10, -150], radius: [48, 26], altitude: 85, period: 95, phase: 2.6, direction: -1 },
+  { type: 'decoy_civilian', centre: [14, -70], radius: [14, 9], altitude: 14, period: 55, phase: 4.4, direction: 1 },
 ];
 
 // With reduced motion the scene is drawn once, frozen at this moment.

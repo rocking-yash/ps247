@@ -59,6 +59,106 @@ body {
   }
 }
 
+/* Landing page scroll motion. components/landing/ScrollMotion.js adds
+   .reveal-ready (never with reduced motion), then marks each element as it
+   first enters the viewport. Until then it sits 16px low and transparent. */
+html.reveal-ready [data-reveal],
+html.reveal-ready [data-reveal-rows] > * {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 400ms ease-out, transform 400ms ease-out;
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+html.reveal-ready [data-revealed] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Already on screen when the page loaded: shown without animating. */
+html.reveal-ready [data-revealed='instant'] {
+  transition: none;
+}
+
+/* A row waiting 16px low would otherwise give its table's scroll wrapper a
+   vertical scrollbar. */
+html.reveal-ready main .overflow-x-auto {
+  overflow-y: hidden;
+}
+
+/* Hairline rules draw in from the left. The element keeps its real border for
+   layout but makes it transparent; a line of the same colour is laid over it
+   and scaled out when ScrollMotion marks it [data-ruled]. */
+html.reveal-ready [data-rule] {
+  position: relative;
+}
+
+html.reveal-ready [data-rule='top'] {
+  border-top-color: transparent;
+}
+
+html.reveal-ready [data-rule='bottom'] {
+  border-bottom-color: transparent;
+}
+
+html.reveal-ready [data-rule]::before {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  height: 1px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 600ms ease-out;
+  transition-delay: var(--rule-delay, 0ms);
+}
+
+html.reveal-ready [data-rule='top']::before {
+  top: -1px;
+  background: var(--color-ink);
+}
+
+html.reveal-ready [data-rule='bottom']::before {
+  bottom: -1px;
+  background: var(--color-rule);
+}
+
+html.reveal-ready [data-rule][data-ruled]::before {
+  transform: scaleX(1);
+}
+
+/* Links: the underline wipes in from the left on hover or keyboard focus,
+   and stays for the nav link of the section being read. */
+.link-wipe {
+  position: relative;
+}
+
+.link-wipe::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: -0.35em;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.link-wipe:hover::after,
+.link-wipe:focus-visible::after,
+.link-wipe[aria-current]::after {
+  transform: scaleX(1);
+}
+
+.link-wipe[aria-current]::after {
+  height: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .link-wipe::after {
+    transition: transform 200ms ease-out;
+  }
+}
+
 /* ---------------------------------------------------------------------------
    Motion that answers an action. Everything here runs in under 250ms.
    --------------------------------------------------------------------------- */
@@ -170,6 +270,23 @@ body {
       --count: var(--to);
       opacity: 1;
     }
+  }
+}
+
+/* On the landing page a figure counts when it is first seen, not when the
+   page loads: ScrollMotion marks it [data-counted]. */
+.count-up.count-on-view > span,
+.count-up.count-on-view::after {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .count-up.count-on-view[data-counted] > span {
+    animation: count-hold 800ms steps(1, end);
+  }
+
+  .count-up.count-on-view[data-counted]::after {
+    animation: count-up 800ms ease-out;
   }
 }
 
