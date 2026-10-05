@@ -76,7 +76,7 @@ export default function ScoreTrend({ points }) {
           dot={{ r: 4, fill: INK, stroke: 'var(--color-paper)', strokeWidth: 2 }}
           activeDot={{ r: 6, fill: INK, stroke: 'var(--color-paper)', strokeWidth: 2 }}
           isAnimationActive={animate}
-          animationDuration={190}
+          animationDuration={240}
           animationEasing="ease-out"
         />
       </LineChart>

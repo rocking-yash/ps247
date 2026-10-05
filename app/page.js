@@ -1,13 +1,10 @@
 import Link from "next/link";
-import Lifecycle from "@/components/landing/Lifecycle";
-import ScrollProgress from "@/components/landing/ScrollProgress";
+import AmbientSky from "@/components/landing/AmbientSky";
 import SiteNav from "@/components/landing/SiteNav";
 import EventRow, { EventTableHead, TH, TD } from "@/components/dashboard/EventRow";
 import { getLandingData } from "@/lib/landing";
-import { CORRECT_RESPONSE, judgeEvent, scoreSession } from "@/lib/models";
-import {
-  DRONE_TYPES, RESPONSES, DRONE_LABELS, RESPONSE_LABELS, SCORING, detectionScore,
-} from "@/lib/constants";
+import { CORRECT_RESPONSE } from "@/lib/models";
+import { DRONE_LABELS, RESPONSE_LABELS, SCORING } from "@/lib/constants";
 import { formatDateTime, formatScore } from "@/lib/format";
 
 // Shows live figures from the training database — never prerender.
@@ -15,7 +12,6 @@ export const dynamic = "force-dynamic";
 
 const SECTIONS = [
   ["#skills", "Graded skills"],
-  ["#lifecycle", "One contact"],
   ["#decision-table", "Decision table"],
   ["#live-figures", "Live figures"],
   ["#verdicts", "Verdicts"],
@@ -36,7 +32,7 @@ const SKILLS = [
   {
     name: "Detect",
     measures: "How long the trainee takes to flag a contact after it appears.",
-    scored: `Full marks at ${seconds(SCORING.detectFullMs)} or faster, none at ${seconds(SCORING.detectZeroMs)} or slower. A contact that finishes its run unflagged is a miss.`,
+    scored: `Full marks at ${seconds(SCORING.detectFullMs)} or faster, none at ${seconds(SCORING.detectZeroMs)} or slower. A contact that reaches the asset unflagged is a miss.`,
     weight: weights.detection,
   },
   {
@@ -48,7 +44,7 @@ const SKILLS = [
   {
     name: "Respond",
     measures: "Whether the counter-measure chosen is the correct one for that contact.",
-    scored: "The share of flagged contacts answered as the decision table requires.",
+    scored: "The share of flagged contacts answered as the decision table below requires.",
     weight: weights.response,
   },
 ];
@@ -61,53 +57,17 @@ const COMPOSITE = [
   ["Each missed contact", `−${SCORING.missedPenalty}`],
 ];
 
-// The contact that plays out in the dark band: a recon quad, flagged after
-// 2.4 s and handled correctly. Its score is worked out by the same functions
-// that grade a real session, so the band cannot disagree with the product.
-const EXAMPLE_LATENCY_MS = 2400;
-function lifecycleExample() {
-  const droneType = "quad_recon";
-  const event = judgeEvent({
-    droneType,
-    spawnTime: 0,
-    detectedAt: EXAMPLE_LATENCY_MS,
-    resolvedAt: EXAMPLE_LATENCY_MS,
-    classifiedAs: droneType,
-    responseChosen: CORRECT_RESPONSE[droneType],
-  });
-  return {
-    droneType,
-    correctResponse: CORRECT_RESPONSE[droneType],
-    options: DRONE_TYPES.map((type) => [type, DRONE_LABELS[type]]),
-    responses: RESPONSES.map((response) => [response, RESPONSE_LABELS[response]]),
-    latency: seconds(EXAMPLE_LATENCY_MS),
-    rows: [
-      ["Detection", `${Math.round(detectionScore(EXAMPLE_LATENCY_MS) * weights.detection)} of ${weights.detection}`],
-      ["Classification", `${weights.classification} of ${weights.classification}`],
-      ["Response", `${weights.response} of ${weights.response}`],
-    ],
-    composite: `${scoreSession([event]).composite} of 100`,
-  };
-}
-
-const WRAP = "mx-auto w-full max-w-6xl px-6";
-const SECTION = "scroll-mt-14 border-t border-rule py-20 sm:py-28";
-const H2 = "max-w-3xl text-3xl font-semibold leading-tight tracking-tight sm:text-4xl";
-const LEAD = "mt-4 max-w-prose text-lg leading-relaxed text-ink/75";
-const BODY = "max-w-prose leading-relaxed text-ink/75";
-
-// Pinned while its panels travel sideways. With reduced motion it is an
-// ordinary section with the panels stacked.
-const PIN = "motion-safe:sticky top-14 flex flex-col justify-center overflow-hidden py-16 motion-safe:h-[calc(100svh-3.5rem)] motion-safe:py-0";
-const TRACK = "mt-12 flex w-max gap-0 motion-safe:scrub-x motion-reduce:w-auto motion-reduce:flex-col";
-const PANEL = "w-[min(84vw,40rem)] shrink-0 border-l border-ink pl-6 pr-10 motion-reduce:w-auto motion-reduce:pb-10 sm:pl-8 sm:pr-16";
+const SECTION = "scroll-mt-14 border-b border-rule py-16 sm:py-20";
+const WRAP = "mx-auto w-full max-w-5xl px-6";
+const H2 = "text-2xl font-semibold";
+const LEAD = "mt-2 max-w-prose text-ink/70";
 
 function Figure({ label, value, note }) {
   return (
-    <div className="border-t border-ink pt-4">
-      <dt className="text-ink/75">{label}</dt>
-      <dd className="mt-2 text-6xl font-semibold tracking-tight sm:text-7xl">{value}</dd>
-      <dd className="mt-2 text-sm leading-relaxed text-ink/75">{note}</dd>
+    <div className="border-t border-ink pt-3">
+      <dt className="text-sm text-ink/70">{label}</dt>
+      <dd className="mt-1 text-5xl font-semibold">{value}</dd>
+      <dd className="mt-1 text-sm text-ink/70">{note}</dd>
     </div>
   );
 }
@@ -130,96 +90,98 @@ export default async function Home() {
         Skip to content
       </a>
 
-      <SiteNav sections={SECTIONS} darkId="lifecycle" />
+      <SiteNav sections={SECTIONS} />
 
       <main>
-        <section id="top" className="flex min-h-[88svh] flex-col justify-end pt-32">
-          <div className={`${WRAP} pb-16 sm:pb-24`}>
-            <h1 className="max-w-5xl text-[clamp(2.5rem,7vw,5.5rem)] font-semibold leading-none tracking-[-0.03em] text-balance">
+        <section
+          id="top"
+          className="relative flex min-h-svh flex-col justify-end bg-panel pt-14 text-readout [--focus:var(--color-readout)]"
+        >
+          <AmbientSky />
+          <div className={`${WRAP} relative pb-14 sm:pb-20`}>
+            <h1 className="resolve max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl sm:leading-tight">
               Counter-drone training that grades the decision, not the aim.
             </h1>
-            <p className="mt-8 max-w-2xl text-xl leading-relaxed text-ink/75">
+            <p className="resolve mt-4 max-w-xl text-lg text-readout/80" style={{ "--step": 1 }}>
               A browser exercise in detecting, classifying and responding to drone contacts. Every
               decision is scored and kept for after-action review.
             </p>
-            <div className="mt-10 flex flex-wrap gap-3">
-              <Link href="/simulator" className="press bg-ink px-6 py-3 font-medium text-paper">
+            <div className="resolve mt-8 flex flex-wrap gap-3" style={{ "--step": 2 }}>
+              <Link href="/simulator" className="press bg-readout px-5 py-2.5 font-medium text-panel">
                 Run a session
               </Link>
-              <Link href="/dashboard" className="press border border-ink px-6 py-3 font-medium">
+              <Link href="/dashboard" className="press border border-readout px-5 py-2.5 font-medium">
                 Review performance
               </Link>
             </div>
           </div>
         </section>
 
-        <ScrollProgress id="skills" horizontal className="scroll-mt-14 border-t border-rule">
-          <div data-sticky className={PIN}>
-            <div className={WRAP}>
-              <h2 className={H2}>Three skills, graded separately</h2>
-              <p className={LEAD}>
-                Each contact is worked in this order, and each step has its own score. A trainee
-                who spots everything but responds wrongly shows up as exactly that.
-              </p>
-            </div>
-            <div className={`${WRAP} overflow-hidden motion-reduce:overflow-visible`}>
-              <ol data-track className={TRACK}>
-                {SKILLS.map((skill) => (
-                  <li key={skill.name} className={PANEL}>
-                    <h3 className="text-5xl font-semibold tracking-tight sm:text-6xl">{skill.name}</h3>
-                    <p className="mt-6 text-xl leading-relaxed">{skill.measures}</p>
-                    <p className={`${BODY} mt-4`}>{skill.scored}</p>
-                    <p className="mt-6">
-                      <span className="text-2xl font-semibold">{skill.weight}</span> of 100 points
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
-        </ScrollProgress>
-
-        <Lifecycle id="lifecycle" data={lifecycleExample()} />
-
-        <ScrollProgress id="decision-table" horizontal className="scroll-mt-14">
-          <div data-sticky className={PIN}>
-            <div className={WRAP}>
-              <h2 className={H2}>The decision table is the marking scheme</h2>
-              <p className={LEAD}>
-                A response is marked against this table and nothing else. It is plain data in the
-                source, not a trained model, so an instructor can read, question and change it.
-              </p>
-            </div>
-            <div className={`${WRAP} overflow-hidden motion-reduce:overflow-visible`}>
-              <ol data-track className={TRACK}>
-                {Object.entries(CORRECT_RESPONSE).map(([droneType, response]) => (
-                  <li key={droneType} className={PANEL}>
-                    <p className="text-ink/75">If the contact is</p>
-                    <p className="mt-1 text-2xl font-semibold">{DRONE_LABELS[droneType]}</p>
-                    <p className="mt-6 text-ink/75">the correct response is</p>
-                    <p className="mt-1 text-5xl font-semibold tracking-tight sm:text-6xl">
-                      {RESPONSE_LABELS[response]}
-                    </p>
-                    <p className={`${BODY} mt-6`}>{RATIONALE[droneType]}</p>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
-        </ScrollProgress>
-
-        <section className={SECTION}>
+        <section id="skills" className={SECTION}>
           <div className={WRAP}>
-            <h2 className={H2}>How the composite score is built</h2>
+            <h2 className={H2}>Three skills, graded separately</h2>
+            <p className={LEAD}>
+              Each contact is worked in this order, and each step has its own score. A trainee who
+              spots everything but responds wrongly shows up as exactly that.
+            </p>
+            <ol className="mt-10 grid gap-10 md:grid-cols-3">
+              {SKILLS.map((skill, i) => (
+                <li key={skill.name} className="border-t border-ink pt-3">
+                  <h3 className="flex items-baseline gap-3 text-xl font-semibold">
+                    <span aria-hidden="true" className="text-ink/50">
+                      {i + 1}
+                    </span>
+                    {skill.name}
+                  </h3>
+                  <p className="mt-3">{skill.measures}</p>
+                  <p className="mt-3 text-sm text-ink/70">{skill.scored}</p>
+                  <p className="mt-3 text-sm">
+                    <span className="font-semibold">{skill.weight}</span> of 100 points
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section id="decision-table" className={SECTION}>
+          <div className={WRAP}>
+            <h2 className={H2}>The decision table is the marking scheme</h2>
+            <p className={LEAD}>
+              A response is marked against this table and nothing else. It is plain data in the
+              source, not a trained model, so an instructor can read, question and change it.
+            </p>
+            <div className="relative mt-8 overflow-x-auto">
+              <table className="w-full min-w-[40rem] text-left">
+                <thead>
+                  <tr>
+                    <th className={TH}>Contact</th>
+                    <th className={TH}>Correct response</th>
+                    <th className={`${TH} pr-0`}>Reason</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(CORRECT_RESPONSE).map(([droneType, response]) => (
+                    <tr key={droneType}>
+                      <td className={`${TD} whitespace-nowrap`}>{DRONE_LABELS[droneType]}</td>
+                      <td className={`${TD} whitespace-nowrap font-semibold`}>{RESPONSE_LABELS[response]}</td>
+                      <td className={`${TD} pr-0`}>{RATIONALE[droneType]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <h3 className="mt-12 text-lg font-semibold">How the composite score is built</h3>
             <p className={LEAD}>The headline number for a session, from 0 to 100.</p>
-            <table className="mt-8 w-full max-w-md text-left">
+            <table className="mt-4 w-full max-w-sm text-left">
               <tbody>
                 {COMPOSITE.map(([label, points]) => (
                   <tr key={label}>
-                    <th scope="row" className="border-b border-rule py-3 pr-5 font-normal">
+                    <th scope="row" className="border-b border-rule py-2 pr-5 font-normal">
                       {label}
                     </th>
-                    <td className="border-b border-rule py-3 text-right font-semibold">{points}</td>
+                    <td className="border-b border-rule py-2 text-right font-semibold">{points}</td>
                   </tr>
                 ))}
               </tbody>
@@ -246,7 +208,7 @@ export default async function Home() {
                 <p className={LEAD}>
                   Live from the training database, read at {formatDateTime(data.readAt)}.
                 </p>
-                <dl className="mt-12 grid gap-12 sm:grid-cols-3">
+                <dl className="mt-10 grid gap-10 sm:grid-cols-3">
                   <Figure
                     label="Sessions recorded"
                     value={data.stats.sessions}
@@ -277,7 +239,7 @@ export default async function Home() {
               {hasSessions && " The rows below are recent contacts from real sessions, with trainee names withheld."}
             </p>
             {hasSessions ? (
-              <div className="relative mt-10 overflow-x-auto">
+              <div className="relative mt-8 overflow-x-auto">
                 <table className="w-full min-w-[52rem] text-left">
                   <EventTableHead />
                   <tbody>
@@ -288,7 +250,7 @@ export default async function Home() {
                 </table>
               </div>
             ) : (
-              <p className="mt-10 border-y border-rule py-6">
+              <p className="mt-8 border-y border-rule py-6">
                 {data.ok
                   ? "No contacts have been graded yet."
                   : "The sample could not be loaded because the training database is unreachable."}
@@ -297,29 +259,36 @@ export default async function Home() {
           </div>
         </section>
 
-        <section id="randomisation" className={SECTION}>
+        <section
+          id="randomisation"
+          className={SECTION}
+        >
           <div className={WRAP}>
             <h2 className={H2}>No two sessions are the same</h2>
             <p className={LEAD}>
-              Each session draws a fresh random seed. Together with the difficulty level and the
-              practice focus, the seed decides how many contacts there are, which types, where each
-              one appears and when the swarm arrives. A trainee cannot learn a layout by heart,
-              because the layout they practised on is not issued again.
+              Each session draws a fresh random seed. Together with the difficulty level, the seed
+              decides how many contacts there are, which types, where each one appears and when
+              the swarm arrives. A trainee
+              cannot learn a layout by heart, because the layout they practised on is not issued
+              again.
             </p>
-            <p className={`${BODY} mt-4 text-lg`}>
-              All three are stored with the session, so the same numbers regenerate exactly what
-              the trainee saw, and an instructor can replay it from the dashboard.
+            <p className="mt-3 max-w-prose text-ink/70">
+              The seed and level are stored with the session, so the same numbers regenerate
+              exactly what the trainee saw when an instructor reviews it.
             </p>
             {data.ok && data.layouts.length > 0 && (
-              <div className="relative mt-10 overflow-x-auto">
-                <table className="w-full min-w-[44rem] text-left">
-                  <caption className="pb-3 text-left text-ink/75">
+              <div className="relative mt-8 overflow-x-auto">
+                <table className="w-full min-w-[44rem] text-left text-sm">
+                  <caption className="pb-3 text-left text-ink/70">
                     The most recent stored seeds and the layout each one regenerates.
                   </caption>
                   <thead>
                     <tr>
                       {["Seed", "Level", "Contacts", "Swarm of", "Swarm arrives", "First contact"].map((heading) => (
-                        <th key={heading} className={`${TH} last:pr-0`}>
+                        <th
+                          key={heading}
+                          className={`${TH} last:pr-0`}
+                        >
                           {heading}
                         </th>
                       ))}
@@ -328,12 +297,14 @@ export default async function Home() {
                   <tbody>
                     {data.layouts.map((layout) => (
                       <tr key={layout.seed}>
-                        <td className={TD}>{layout.seed}</td>
-                        <td className={`${TD} whitespace-nowrap`}>{layout.level}</td>
-                        <td className={`${TD} whitespace-nowrap`}>{layout.contacts}</td>
-                        <td className={`${TD} whitespace-nowrap`}>{layout.swarmSize}</td>
-                        <td className={`${TD} whitespace-nowrap`}>{(layout.swarmAtMs / 1000).toFixed(1)} s</td>
-                        <td className={`${TD} whitespace-nowrap pr-0`}>
+                        <td className="border-b border-rule py-3 pr-5">{layout.seed}</td>
+                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5">{layout.level}</td>
+                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5">{layout.contacts}</td>
+                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5">{layout.swarmSize}</td>
+                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5">
+                          {(layout.swarmAtMs / 1000).toFixed(1)} s
+                        </td>
+                        <td className="whitespace-nowrap border-b border-rule py-3">
                           {bearing(layout.firstBearingDeg)}, at {(layout.firstAtMs / 1000).toFixed(1)} s
                         </td>
                       </tr>
@@ -346,8 +317,8 @@ export default async function Home() {
         </section>
       </main>
 
-      <footer className="border-t border-ink text-sm text-ink/75">
-        <div className={`${WRAP} flex flex-col gap-x-10 gap-y-1 py-10 sm:flex-row`}>
+      <footer className="text-sm text-ink/70">
+        <div className={`${WRAP} flex flex-col gap-x-10 gap-y-1 py-8 sm:flex-row`}>
           <span>Smart India Hackathon 2026</span>
           <span>Problem statement SIH26247</span>
           <span>Ministry of Defence, Defence Services Staff College</span>
