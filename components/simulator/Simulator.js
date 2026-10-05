@@ -119,6 +119,19 @@ function percent(share) {
   return `${Math.round(share * 100)}%`;
 }
 
+// What the next session will be and why, in the server's own words: the
+// level and its reason, then what the scenario will practise and its reason.
+function NextUp({ assignment }) {
+  return (
+    <div className="mt-4 border-t border-panel-rule pt-3 text-sm text-readout/60">
+      <p>
+        {assignment.levelReason} It will be by {assignment.lighting}.
+      </p>
+      {assignment.focusReason && <p className="mt-2">{assignment.focusReason}</p>}
+    </div>
+  );
+}
+
 // Starting needs the server's assignment; say so if it could not be fetched.
 function StartButton({ assignment, label, onBegin, onRetry }) {
   if (assignment === false) {
@@ -138,13 +151,17 @@ function StartButton({ assignment, label, onBegin, onRetry }) {
   );
 }
 
-function ResultPanel({ result, assignment, onRestart, onRetry }) {
+function ResultPanel({ result, replay, assignment, onRestart, onRetry }) {
   const { scores, events } = result;
 
   return (
     <>
-      <h2 className="text-sm font-semibold">Session report</h2>
-      <p className="text-sm text-readout/60">Saved to the training record.</p>
+      <h2 className="text-sm font-semibold">{replay ? 'Replay report' : 'Session report'}</h2>
+      <p className="text-sm text-readout/60">
+        {replay
+          ? `Not saved. The original record is unchanged; it scored ${replay.originalComposite}.`
+          : 'Saved to the training record.'}
+      </p>
       <dl className="mt-3 border-t border-panel-rule">
         <Readout label="Composite" value={`${scores.composite} / 100`} tone="font-semibold" />
         <Readout
@@ -156,6 +173,8 @@ function ResultPanel({ result, assignment, onRestart, onRetry }) {
         <Readout label="False positives" value={scores.falsePositives} tone={scores.falsePositives ? tone(false) : ''} />
         <Readout label="Missed" value={scores.missed} tone={scores.missed ? tone(false) : ''} />
       </dl>
+
+      {result.weakness && <p className="mt-3 text-sm">{result.weakness}</p>}
 
       <h3 className="mt-5 text-sm font-semibold">Contacts, in order of appearance</h3>
       <ol className="mt-1 border-t border-panel-rule">
@@ -170,16 +189,21 @@ function ResultPanel({ result, assignment, onRestart, onRetry }) {
       </ol>
 
       <p className="mt-3 break-all text-xs text-readout/60">
-        Session {result.id}
-        <br />
+        {result.id && (
+          <>
+            Session {result.id}
+            <br />
+          </>
+        )}
         Seed {result.scenarioSeed}
       </p>
-      {assignment && (
-        <p className="mt-4 text-sm text-readout/60">
-          Next session: level {assignment.level}, {assignment.lighting}.
-        </p>
-      )}
-      <StartButton assignment={assignment} label="Run another session" onBegin={onRestart} onRetry={onRetry} />
+      {assignment && !replay && <NextUp assignment={assignment} />}
+      <StartButton
+        assignment={assignment}
+        label={replay ? 'Replay again' : 'Run another session'}
+        onBegin={onRestart}
+        onRetry={onRetry}
+      />
     </>
   );
 }
@@ -195,10 +219,20 @@ async function fetchAssignment() {
   }
 }
 
+const FOCUS_LABEL = { none: 'General', detect: 'Detection', classify: 'Classification', respond: 'Response' };
+const LEVEL_SOURCE = { instructor: 'set by instructor', adaptive: 'adaptive', replay: 'as recorded' };
+
 const BLANK = { status: 'pending', detectedAt: null, resolvedAt: null, classifiedAs: null, responseChosen: null };
 const isOver = (record) => record.status === 'resolved' || record.status === 'missed';
 
-export default function Simulator() {
+// replay: null for a new session, or the recorded session to rerun
+// (see lib/replay.js). A replay reuses that session's seed, level and
+// lighting, and its result is never saved.
+export default function Simulator({ replay = null }) {
+  const replayAssignment =
+    replay && replay.exact
+      ? { level: replay.level, lighting: replay.lighting, focus: replay.focus, setBy: 'replay' }
+      : null;
   const [phase, setPhaseState] = useState('idle'); // idle | running | saving | done | error
   const [scenario, setScenario] = useState(null);
   // One record per contact, same order as scenario.drones.
@@ -209,7 +243,7 @@ export default function Simulator() {
   const [error, setError] = useState(null);
   // Level and lighting for the next session, set by the server from the
   // trainee's record. null until loaded; false if it could not be loaded.
-  const [assignment, setAssignment] = useState(null);
+  const [assignment, setAssignment] = useState(replayAssignment);
   // The assignment the current (or just finished) session is running under.
   const [running, setRunning] = useState(null);
 
@@ -240,11 +274,13 @@ export default function Simulator() {
   }, [phase, getElapsed]);
 
   async function loadAssignment() {
+    if (replay) return;  // a replay's level and lighting are fixed
     setAssignment(null);
     setAssignment(await fetchAssignment());
   }
 
   useEffect(() => {
+    if (replay) return;
     let ignore = false;
     fetchAssignment().then((next) => {
       if (!ignore) setAssignment(next);
@@ -252,15 +288,16 @@ export default function Simulator() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [replay]);
 
   function begin() {
     // A fresh random seed every session; with the level it fixes the scenario.
-    const next = buildScenario(newSeed(), assignment.level);
+    // A replay uses the recorded session's seed instead, so it is the same one.
+    const next = buildScenario(replay ? replay.seed : newSeed(), assignment.level, assignment.focus ?? null);
     scenarioRef.current = next;
     runningRef.current = assignment;
     setRunning(assignment);
-    setAssignment(null);
+    if (!replay) setAssignment(null);
     recordsRef.current = next.drones.map(() => BLANK);
     setScenario(next);
     setRecords(recordsRef.current);
@@ -302,7 +339,12 @@ export default function Simulator() {
       startedAt: clock.current.wallStart,
       endedAt: new Date().toISOString(),
       completed: true,
-      difficulty: { level: runningRef.current.level, setBy: runningRef.current.setBy },
+      replay: Boolean(replay),
+      difficulty: {
+        level: runningRef.current.level,
+        setBy: replay ? undefined : runningRef.current.setBy,
+        focus: runningRef.current.focus ?? null,
+      },
       conditions: { lighting: runningRef.current.lighting, terrain: 'rural' },
       // One event per contact, each graded on its own.
       events: drones.map((drone, i) => ({
@@ -383,13 +425,34 @@ export default function Simulator() {
             <Readout label="Conditions" value={shown ? (shown.lighting === 'night' ? 'Night' : 'Day') : 'Pending'} />
             <Readout
               label="Level"
-              value={shown ? `${shown.level}, ${shown.setBy === 'adaptive' ? 'adaptive' : 'set by instructor'}` : 'Pending'}
+              value={shown ? `${shown.level}, ${LEVEL_SOURCE[shown.setBy]}` : 'Pending'}
             />
+            <Readout label="Practice focus" value={shown ? FOCUS_LABEL[shown.focus ?? 'none'] : 'Pending'} />
+            {replay && <Readout label="Replay of" value={`Session of ${replay.recordedAt}`} />}
           </dl>
         </div>
 
         <div className="px-5 py-5" aria-live="polite">
-          {phase === 'idle' && (
+          {phase === 'idle' && replay && !replay.exact && (
+            <p className="text-sm">
+              This session was recorded under an earlier scenario generator, so its seed no longer
+              produces the same contacts and it cannot be replayed.
+            </p>
+          )}
+          {phase === 'idle' && replay && replay.exact && (
+            <>
+              <p className="text-sm">
+                This reruns a recorded session from its stored seed: the same contacts, of the same
+                types, appear at the same moments on the same paths.
+              </p>
+              <p className="mt-2 text-sm text-readout/60">
+                A replay is scored but not saved, so the original record and the trainee&apos;s
+                averages are not affected.
+              </p>
+              <StartButton assignment={assignment} label="Begin replay" onBegin={begin} onRetry={loadAssignment} />
+            </>
+          )}
+          {phase === 'idle' && !replay && (
             <>
               <p className="text-sm">
                 You are observing the airspace over a defended compound. Contacts arrive singly
@@ -401,6 +464,7 @@ export default function Simulator() {
                 response is correct. Not every contact is a threat. The rings on the ground are 100 m
                 apart, measured from your post; a contact&apos;s shadow shows which it is over.
               </p>
+              {assignment && <NextUp assignment={assignment} />}
               <StartButton assignment={assignment} label="Begin session" onBegin={begin} onRetry={loadAssignment} />
             </>
           )}
@@ -422,7 +486,13 @@ export default function Simulator() {
           {phase === 'done' && result && (
             <div className="reveal-in">
               <div>
-                <ResultPanel result={result} assignment={assignment} onRestart={begin} onRetry={loadAssignment} />
+                <ResultPanel
+                  result={result}
+                  replay={replay}
+                  assignment={assignment}
+                  onRestart={begin}
+                  onRetry={loadAssignment}
+                />
               </div>
             </div>
           )}
@@ -439,9 +509,15 @@ export default function Simulator() {
 
         {atRest && (
           <p className="mt-auto px-5 pb-4 text-sm">
-            <Link href="/" className="underline underline-offset-4">
-              Leave the simulator
-            </Link>
+            {replay ? (
+              <Link href={`/dashboard/${replay.traineeId}`} className="underline underline-offset-4">
+                Back to the session record
+              </Link>
+            ) : (
+              <Link href="/" className="underline underline-offset-4">
+                Leave the simulator
+              </Link>
+            )}
           </p>
         )}
       </aside>

@@ -2,8 +2,8 @@
 
 @theme {
   /* Review sheet: /, /dashboard */
-  --color-paper: #f7f7f4;
-  --color-ink: #15202b;
+  --color-paper: #f8f8f5;
+  --color-ink: #14202a;
   --color-rule: #c9cdd2;
   --color-fail: #9b2c2c;
   --color-pass: #2c6e49;
@@ -34,33 +34,73 @@ body {
   outline-offset: 2px;
 }
 
-/* Motion, only for readers who have not asked for less of it: anchor links
-   scroll smoothly, and the landing hero's text comes into focus once, in
-   sequence (--step orders it). Nothing else on the site animates in. */
+/* Anchor links scroll smoothly, for readers who have not asked for less motion. */
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
   }
-
-  .resolve {
-    animation: resolve 0.6s ease-out both;
-    animation-delay: calc(var(--step, 0) * 160ms);
-  }
-
-  @keyframes resolve {
-    from {
-      opacity: 0;
-      filter: blur(6px);
-    }
-    to {
-      opacity: 1;
-      filter: blur(0);
-    }
-  }
 }
 
 /* ---------------------------------------------------------------------------
-   Motion that answers an action. Everything here runs in under 250ms.
+   Scroll-scrubbed state. A pinned section publishes its scroll progress as
+   --p (0 → 1, see components/landing/ScrollProgress.js). These utilities turn
+   --p into an element's state, so the state is a pure function of position:
+   it reverses exactly and never plays on its own.
+   --------------------------------------------------------------------------- */
+
+/* --t runs 0 → 1 while --p runs from --from to --until. */
+@utility scrub {
+  --t: clamp(0, calc((var(--p, 0) - var(--from, 0)) / (var(--until, 1) - var(--from, 0))), 1);
+}
+
+@utility scrub-fade {
+  opacity: var(--t);
+}
+
+/* The option that turns out to be right fills in; the others fall back. */
+@utility scrub-chosen {
+  background-color: color-mix(in srgb, var(--color-readout) calc(var(--t) * 100%), transparent);
+  color: color-mix(in srgb, var(--color-panel) calc(var(--t) * 100%), var(--color-readout));
+}
+
+@utility scrub-dim {
+  opacity: calc(1 - 0.65 * var(--t));
+}
+
+/* The flag ring arrives large and closes onto the contact. */
+@utility scrub-ring {
+  opacity: var(--t);
+  transform: scale(calc(2.6 - 1.6 * var(--t)));
+}
+
+/* Present between two points: fades in over --in0..--in1, out over --out0..--out1. */
+@utility scrub-window {
+  --shown: clamp(0, calc((var(--p, 0) - var(--in0)) / (var(--in1) - var(--in0))), 1);
+  --gone: clamp(0, calc((var(--p, 0) - var(--out0)) / (var(--out1) - var(--out0))), 1);
+  opacity: calc(var(--shown) - var(--gone));
+}
+
+/* The contact: barely there for the first fifth, then it closes and sharpens
+   over the second. Offsets are in the view's own size (container units). */
+@utility scrub-contact {
+  --near: calc(
+    0.12 * clamp(0, calc(var(--p, 0) / 0.2), 1) + 0.88 * clamp(0, calc((var(--p, 0) - 0.2) / 0.2), 1)
+  );
+  transform: translate(calc((1 - var(--near)) * 30cqw), calc((1 - var(--near)) * -24cqh))
+    scale(calc(0.08 + 0.92 * var(--near)));
+  opacity: calc(0.3 + 0.7 * var(--near));
+  filter: blur(calc((1 - var(--near)) * 2.5px));
+  will-change: transform;
+}
+
+/* A horizontal track that travels sideways as the page scrolls down. */
+@utility scrub-x {
+  transform: translate3d(calc(var(--p, 0) * var(--max, 0) * -1px), 0, 0);
+  will-change: transform;
+}
+
+/* ---------------------------------------------------------------------------
+   Motion that answers an action. Everything here runs in under 200ms.
    --------------------------------------------------------------------------- */
 
 /* Pressed: the control visibly goes down, not just a colour change. The
@@ -120,7 +160,7 @@ body {
 ::view-transition-new(root),
 ::view-transition-old(.page),
 ::view-transition-new(.page) {
-  animation-duration: 200ms;
+  animation-duration: 180ms;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -133,11 +173,11 @@ body {
   }
 
   .reveal {
-    transition: grid-template-rows 220ms ease-out;
+    transition: grid-template-rows 180ms ease-out;
   }
 
   .reveal-in {
-    animation: reveal-in 220ms ease-out;
+    animation: reveal-in 180ms ease-out;
   }
 
   @keyframes reveal-in {
@@ -148,11 +188,11 @@ body {
   }
 
   .count-up > span {
-    animation: count-hold 240ms steps(1, end);
+    animation: count-hold 190ms steps(1, end);
   }
 
   .count-up::after {
-    animation: count-up 240ms ease-out;
+    animation: count-up 190ms ease-out;
   }
 
   @keyframes count-hold {

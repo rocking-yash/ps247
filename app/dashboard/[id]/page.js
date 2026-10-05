@@ -3,32 +3,29 @@ import { notFound } from 'next/navigation';
 import ScoreTrend from '@/components/dashboard/ScoreTrend';
 import { getTraineeDetail } from '@/lib/dashboard';
 import EventRow, { EventTableHead, TD } from '@/components/dashboard/EventRow';
-import BaseLevelForm from '@/components/dashboard/BaseLevelForm';
+import AssignmentControls from '@/components/dashboard/AssignmentControls';
+import { NextSession, SystemRecommends } from '@/components/dashboard/Recommendation';
 import Count from '@/components/Count';
 import Disclosure from '@/components/Disclosure';
 import { nextAssignment } from '@/lib/assignment';
-import { buildScenario } from '@/lib/scenario';
+import { scenarioMatchesEvents } from '@/lib/scenario';
+import { SKILL_NAMES } from '@/lib/weakness';
 import { VERDICT_LABELS, LEVEL_UP_AT, LEVEL_DOWN_AT } from '@/lib/constants';
 import { formatDateTime } from '@/lib/format';
 
 // Sessions shown before the rest are folded away under a disclosure.
 const RECENT_SESSIONS = 5;
 
-// Rebuilds the scenario from the stored seed and level and checks it against
-// what was recorded: same contacts, same types, same spawn times.
-function seedReproduces(session) {
-  const { drones } = buildScenario(session.scenarioSeed, session.difficulty.level);
-  return (
-    drones.length === session.events.length &&
-    drones.every((drone, i) => {
-      const event = session.events[i];
-      return drone.droneType === event.droneType && drone.spawnTime === event.spawnTime;
-    })
-  );
-}
-
 // One session in the verdict table: its header line, then a row per contact.
 function SessionGroup({ session }) {
+  // Rebuilt from the stored seed and level and checked against the record.
+  const replayable = scenarioMatchesEvents(
+    session.scenarioSeed,
+    session.difficulty.level,
+    session.events,
+    session.difficulty.focus ?? null,
+  );
+
   return (
     <tbody>
       <tr>
@@ -39,14 +36,20 @@ function SessionGroup({ session }) {
             <span>
               Level {session.difficulty.level}
               {session.difficulty.setBy === 'adaptive' && ', adaptive'}
+              {session.difficulty.focus && `, ${SKILL_NAMES[session.difficulty.focus].toLowerCase()} practice`}
             </span>
             <span className="capitalize">{session.conditions.lighting}</span>
             {!session.completed && <span>Not completed</span>}
-            <span className="text-ink/70">
-              {seedReproduces(session)
-                ? 'Seed regenerates these contacts'
-                : 'Recorded under an earlier scenario generator'}
-            </span>
+            {replayable ? (
+              <Link
+                href={`/simulator?replay=${session._id}`}
+                className="no-print underline underline-offset-4"
+              >
+                Replay this scenario
+              </Link>
+            ) : (
+              <span className="text-ink/70">Recorded under an earlier scenario generator</span>
+            )}
             <span className="ml-auto">
               Composite <span className="font-semibold">{session.scores.composite}</span>
             </span>
@@ -113,17 +116,40 @@ export default async function TraineePage({ params }) {
         <Fact label="Average composite" value={<Count value={avgComposite} />} />
       </dl>
 
+      {next.weakness && (
+        <p className={`mt-6 max-w-prose text-lg ${next.focus ? 'font-semibold text-fail' : ''}`}>
+          {next.weakness}
+        </p>
+      )}
+
       <section className="mt-10 border-t border-rule pt-4">
-        <h2 className="text-lg font-semibold">Difficulty</h2>
+        <h2 className="text-lg font-semibold">Difficulty and conditions</h2>
         <p className="mt-1 max-w-prose text-sm text-ink/70">
-          The next session will run at level <span className="font-semibold text-ink">{next.level}</span>
-          {next.setBy === 'adaptive' ? ', adapted from the last three completed sessions' : ', the base level'}
-          , by {next.lighting}. The level rises and falls with performance but never drops below
-          the base level set here.
+          The base level is the floor. The system recommends a level from recent scores, and the
+          next session runs at whichever is higher.
         </p>
         <div className="mt-3">
-          <BaseLevelForm traineeId={String(trainee._id)} baseLevel={next.baseLevel} />
+          <AssignmentControls
+            traineeId={String(trainee._id)}
+            traineeName={trainee.name}
+            baseLevel={next.baseLevel}
+            lightingChoice={next.lightingChoice}
+          />
         </div>
+        <dl className="mt-4 grid gap-x-12 gap-y-4 sm:grid-cols-2">
+          <div>
+            <dt className="text-sm text-ink/70">System recommends</dt>
+            <dd>
+              <SystemRecommends next={next} />
+            </dd>
+          </div>
+          <div>
+            <dt className="text-sm text-ink/70">Next session</dt>
+            <dd>
+              <NextSession next={next} />
+            </dd>
+          </div>
+        </dl>
       </section>
 
       <section className="mt-12">

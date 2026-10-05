@@ -1,6 +1,8 @@
+import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db';
 import { demoTrainee } from '@/lib/assignment';
 import { Session, judgeEvent, scoreSession } from '@/lib/models';
+import { skillProfile, weaknessSentence } from '@/lib/weakness';
 
 function badRequest(error) {
   return Response.json({ error }, { status: 400 });
@@ -23,17 +25,43 @@ export async function POST(request) {
   }
 
   try {
-    await connectDB();
-
-    const traineeId = body.traineeId ?? (await demoTrainee())._id;
     const judged = events.map(judgeEvent);
+
+    // A replay is validated, judged and scored like any session, then handed
+    // straight back. Nothing is written, so the original record and every
+    // average stay as they were.
+    if (body.replay) {
+      const draft = new Session({
+        traineeId: new mongoose.Types.ObjectId(),
+        difficulty: { level: body.difficulty?.level ?? 1 },
+        conditions: body.conditions,
+        scenarioSeed,
+        events: judged,
+      });
+      await draft.validate();
+      return Response.json({
+        id: null,
+        replay: true,
+        scenarioSeed,
+        events: judged,
+        scores: scoreSession(judged),
+        weakness: weaknessSentence(skillProfile(judged)),
+      });
+    }
+
+    await connectDB();
+    const traineeId = body.traineeId ?? (await demoTrainee())._id;
 
     const session = await Session.create({
       traineeId,
       startedAt: body.startedAt,
       endedAt: body.endedAt ?? new Date(),
       completed: body.completed ?? true,
-      difficulty: { level: body.difficulty?.level ?? 1, setBy: body.difficulty?.setBy },
+      difficulty: {
+        level: body.difficulty?.level ?? 1,
+        setBy: body.difficulty?.setBy,
+        focus: body.difficulty?.focus ?? null,
+      },
       conditions: body.conditions,
       scenarioSeed,
       events: judged,
@@ -46,6 +74,8 @@ export async function POST(request) {
       scenarioSeed: session.scenarioSeed,
       events: session.events,
       scores: session.scores,
+      // Which skill let this session down, in one sentence.
+      weakness: weaknessSentence(skillProfile(judged)),
     }, { status: 201 });
   } catch (err) {
     if (err.name === 'ValidationError' || err.name === 'CastError') {

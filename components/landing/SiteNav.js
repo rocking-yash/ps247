@@ -1,8 +1,8 @@
 'use client';
 
-// Fixed landing-page nav. Two things follow the scroll position: the bar
-// switches from the hero's dark ground to paper once the hero has passed, and
-// the link for the section being read is marked.
+// Fixed landing-page nav. Two things follow the scroll position: the link for
+// the section being read is marked, and the bar takes the dark ground while
+// the dark band is underneath it, then goes straight back to paper.
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -11,16 +11,17 @@ const NAV_HEIGHT = 56;
 // A section becomes current once its heading is this far up the viewport.
 const READING_LINE = 0.35;
 
-// sections: [[href, label]], in page order
-export default function SiteNav({ sections }) {
-  const [{ current, onPaper }, setPosition] = useState({ current: null, onPaper: false });
+// sections: [[href, label]], in page order.  darkId: id of the dark band.
+export default function SiteNav({ sections, darkId }) {
+  const [{ current, overDark }, setPosition] = useState({ current: null, overDark: false });
 
   useEffect(() => {
     let frame = 0;
 
     function measure() {
       frame = 0;
-      const pastHero = document.getElementById('top').getBoundingClientRect().bottom <= NAV_HEIGHT;
+      const band = document.getElementById(darkId).getBoundingClientRect();
+      const dark = band.top <= NAV_HEIGHT && band.bottom > NAV_HEIGHT;
 
       const line = Math.max(NAV_HEIGHT + 24, window.innerHeight * READING_LINE);
       let reading = null;
@@ -32,7 +33,7 @@ export default function SiteNav({ sections }) {
       if (reading && atBottom) reading = sections[sections.length - 1][0];
 
       setPosition((prev) =>
-        prev.current === reading && prev.onPaper === pastHero ? prev : { current: reading, onPaper: pastHero },
+        prev.current === reading && prev.overDark === dark ? prev : { current: reading, overDark: dark },
       );
     }
 
@@ -48,15 +49,15 @@ export default function SiteNav({ sections }) {
       window.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
     };
-  }, [sections]);
+  }, [sections, darkId]);
 
-  const ground = onPaper
-    ? 'border-ink bg-paper text-ink'
-    : 'border-panel-rule bg-panel text-readout [--focus:var(--color-readout)]';
+  const ground = overDark
+    ? 'border-panel-rule bg-panel text-readout [--focus:var(--color-readout)]'
+    : 'border-ink bg-paper text-ink';
 
   return (
     <header className={`fixed inset-x-0 top-0 z-20 border-b ${ground}`}>
-      <nav aria-label="Primary" className="mx-auto flex h-14 w-full max-w-5xl items-center gap-6 px-6 text-sm">
+      <nav aria-label="Primary" className="mx-auto flex h-14 w-full max-w-6xl items-center gap-6 px-6 text-sm">
         <a href="#top" className="font-semibold">
           Counter-drone trainer
         </a>

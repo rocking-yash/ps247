@@ -203,7 +203,7 @@ export const MODELS = {
 // The flag ring never looks smaller than it does at this range, so a flag on
 // a distant speck is as visible as one on a close contact.
 const RING_FULL_SIZE_WITHIN = 200;
-const RING_SNAP_MS = 220;
+const RING_SNAP_MS = 180;
 
 function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;

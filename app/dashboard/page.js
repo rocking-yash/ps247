@@ -1,5 +1,8 @@
 import Link from 'next/link';
 import { listTrainees, listUnits } from '@/lib/dashboard';
+import { nextAssignment } from '@/lib/assignment';
+import AssignmentControls from '@/components/dashboard/AssignmentControls';
+import { NextSession, SystemRecommends } from '@/components/dashboard/Recommendation';
 import Count from '@/components/Count';
 import { SKILL_LABELS } from '@/lib/units';
 import { formatDateTime } from '@/lib/format';
@@ -25,6 +28,10 @@ function SkillCell({ unit, skill }) {
 
 export default async function DashboardPage() {
   const [units, trainees] = await Promise.all([listUnits(), listTrainees()]);
+  // What each trainee's next session will be, and how that was arrived at.
+  const assignments = await Promise.all(
+    trainees.map((t) => nextAssignment({ _id: t.id, baseLevel: t.baseLevel, lightingChoice: t.lightingChoice })),
+  );
 
   return (
     <>
@@ -116,6 +123,59 @@ export default async function DashboardPage() {
               <tr>
                 <td className={`${TD} pr-0`} colSpan={5}>
                   No trainees yet. Run a session in the simulator to create the first record.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <h2 className="mt-14 text-2xl font-semibold">Difficulty and conditions</h2>
+      <p className="mt-1 max-w-prose text-sm text-ink/70">
+        Set each trainee&apos;s base level and lighting. The system then recommends a level from
+        their recent scores. The base level is the floor: the next session runs at whichever is
+        higher.
+      </p>
+
+      <div className="relative mt-6 overflow-x-auto">
+        <table className="w-full min-w-[56rem] text-left">
+          <thead>
+            <tr>
+              <th className={TH}>Trainee</th>
+              <th className={TH}>Instructor sets</th>
+              <th className={TH}>System recommends</th>
+              <th className={`${TH} pr-0`}>Next session</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trainees.map((trainee, i) => (
+              <tr key={trainee.id}>
+                <th scope="row" className={`${TD} align-top font-medium`}>
+                  {trainee.name}
+                </th>
+                <td className={`${TD} align-top`}>
+                  <AssignmentControls
+                    traineeId={trainee.id}
+                    traineeName={trainee.name}
+                    baseLevel={assignments[i].baseLevel}
+                    lightingChoice={assignments[i].lightingChoice}
+                  />
+                  <span className="hidden text-sm print:block">
+                    Base level {assignments[i].baseLevel}, {assignments[i].lightingChoice}
+                  </span>
+                </td>
+                <td className={`${TD} align-top`}>
+                  <SystemRecommends next={assignments[i]} />
+                </td>
+                <td className={`${TD} pr-0 align-top`}>
+                  <NextSession next={assignments[i]} />
+                </td>
+              </tr>
+            ))}
+            {trainees.length === 0 && (
+              <tr>
+                <td className={`${TD} pr-0`} colSpan={4}>
+                  No trainees yet.
                 </td>
               </tr>
             )}
