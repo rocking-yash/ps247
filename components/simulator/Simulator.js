@@ -10,9 +10,9 @@ import {
   DRONE_TYPES, RESPONSES, DRONE_LABELS, RESPONSE_LABELS, VERDICT_LABELS,
 } from '@/lib/constants';
 
-const BUTTON = 'press w-full border border-readout px-4 py-2 text-sm font-medium';
-const PRIMARY = `${BUTTON} bg-readout text-panel disabled:cursor-not-allowed disabled:opacity-40`;
-const ROW = 'flex items-baseline justify-between gap-4 border-b border-panel-rule py-2 text-sm';
+const BUTTON = 'press w-full border border-rule bg-paper px-4 py-2.5 text-sm font-medium';
+const PRIMARY = 'press w-full bg-accent px-4 py-2.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40';
+const ROW = 'flex items-baseline justify-between gap-4 border-b border-rule py-2 text-sm';
 
 function formatClock(ms) {
   return `T+${(ms / 1000).toFixed(1).padStart(5, '0')} s`;
@@ -21,7 +21,7 @@ function formatClock(ms) {
 function Readout({ label, value, tone = '' }) {
   return (
     <div className={ROW}>
-      <dt className="text-readout/60">{label}</dt>
+      <dt className="text-body">{label}</dt>
       <dd className={`text-right ${tone}`}>{value}</dd>
     </div>
   );
@@ -40,8 +40,8 @@ function ChoiceGroup({ legend, options, labels, value, onChange }) {
           return (
             <label
               key={option}
-              className={`press relative flex min-h-9 cursor-pointer items-center gap-3 border px-3 py-2 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-readout ${
-                chosen ? 'border-readout bg-readout font-semibold text-panel' : 'border-readout/40'
+              className={`press choice relative flex min-h-9 cursor-pointer items-center gap-3 border px-3 py-2 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent ${
+                chosen ? 'border-accent bg-accent font-semibold text-white' : 'border-rule bg-paper'
               }`}
             >
               <input
@@ -53,7 +53,7 @@ function ChoiceGroup({ legend, options, labels, value, onChange }) {
               />
               <span
                 aria-hidden="true"
-                className={`h-2.5 w-2.5 shrink-0 border ${chosen ? 'border-panel bg-panel' : 'border-readout/60'}`}
+                className={`h-2.5 w-2.5 shrink-0 rounded-full border ${chosen ? 'border-white bg-white' : 'border-body'}`}
               />
               {labels[option]}
             </label>
@@ -71,7 +71,7 @@ function DecisionPanel({ detectedAt, waiting, onSubmit }) {
   return (
     <>
       <h2 className="text-sm font-semibold">Contact flagged</h2>
-      <p className="text-sm text-readout/60">
+      <p className="text-sm text-body">
         {formatClock(detectedAt)}, marked with the solid ring.
         {waiting > 0 && ` ${waiting} more flagged and waiting.`}
       </p>
@@ -90,12 +90,12 @@ function DecisionPanel({ detectedAt, waiting, onSubmit }) {
         onChange={setResponseChosen}
       />
       {/* Set apart from the choices, and it reads back what will be submitted. */}
-      <div className="mt-5 border-t border-panel-rule pt-3">
-        <p className="text-sm text-readout/60">
+      <div className="mt-5 border-t border-rule pt-3">
+        <p className="text-sm text-body">
           {classifiedAs && responseChosen ? (
             <>
-              Submitting <span className="text-readout">{DRONE_LABELS[classifiedAs]}</span>, response{' '}
-              <span className="text-readout">{RESPONSE_LABELS[responseChosen]}</span>.
+              Submitting <span className="text-ink">{DRONE_LABELS[classifiedAs]}</span>, response{' '}
+              <span className="text-ink">{RESPONSE_LABELS[responseChosen]}</span>.
             </>
           ) : (
             'Choose a classification and a response.'
@@ -114,7 +114,7 @@ function DecisionPanel({ detectedAt, waiting, onSubmit }) {
 }
 
 function tone(ok) {
-  return ok ? 'text-pass-lit' : 'text-fail-lit';
+  return ok ? 'text-pass' : 'text-fail';
 }
 
 function percent(share) {
@@ -125,7 +125,7 @@ function percent(share) {
 // level and its reason, then what the scenario will practise and its reason.
 function NextUp({ assignment }) {
   return (
-    <div className="mt-4 border-t border-panel-rule pt-3 text-sm text-readout/60">
+    <div className="mt-4 border-t border-rule pt-3 text-sm text-body">
       <p>
         {assignment.levelReason} It will be by {assignment.lighting}.
       </p>
@@ -139,7 +139,7 @@ function StartButton({ assignment, label, onBegin, onRetry }) {
   if (assignment === false) {
     return (
       <>
-        <p className="mt-4 text-sm text-fail-lit">The next assignment could not be loaded.</p>
+        <p className="mt-4 text-sm text-fail">The next assignment could not be loaded.</p>
         <button className={`${BUTTON} mt-2`} onClick={onRetry}>
           Try again
         </button>
@@ -159,12 +159,12 @@ function ResultPanel({ result, replay, assignment, onRestart, onRetry }) {
   return (
     <>
       <h2 className="text-sm font-semibold">{replay ? 'Replay report' : 'Session report'}</h2>
-      <p className="text-sm text-readout/60">
+      <p className="text-sm text-body">
         {replay
           ? `Not saved. The original record is unchanged; it scored ${replay.originalComposite}.`
           : 'Saved to the training record.'}
       </p>
-      <dl className="mt-3 border-t border-panel-rule">
+      <dl className="mt-3 border-t border-rule">
         <Readout label="Composite" value={`${scores.composite} / 100`} tone="font-semibold" />
         <Readout
           label="Detect"
@@ -179,7 +179,7 @@ function ResultPanel({ result, replay, assignment, onRestart, onRetry }) {
       {result.weakness && <p className="mt-3 text-sm">{result.weakness}</p>}
 
       <h3 className="mt-5 text-sm font-semibold">Contacts, in order of appearance</h3>
-      <ol className="mt-1 border-t border-panel-rule">
+      <ol className="mt-1 border-t border-rule">
         {events.map((event, i) => (
           <li key={i} className={ROW}>
             <span>{DRONE_LABELS[event.droneType]}</span>
@@ -190,7 +190,7 @@ function ResultPanel({ result, replay, assignment, onRestart, onRetry }) {
         ))}
       </ol>
 
-      <p className="mt-3 break-all text-xs text-readout/60">
+      <p className="mt-3 break-all text-xs text-body">
         {result.id && (
           <>
             Session {result.id}
@@ -237,7 +237,7 @@ function TraineePicker({ trainees, onPick, onRetry }) {
   if (trainees === false) {
     return (
       <>
-        <p className="text-sm text-fail-lit">The list of trainees could not be loaded.</p>
+        <p className="text-sm text-fail">The list of trainees could not be loaded.</p>
         <button className={`${BUTTON} mt-2`} onClick={onRetry}>
           Try again
         </button>
@@ -250,17 +250,17 @@ function TraineePicker({ trainees, onPick, onRetry }) {
   return (
     <>
       <h2 className="text-sm font-semibold">Who is training?</h2>
-      <p className="text-sm text-readout/60">
+      <p className="text-sm text-body">
         The session is saved to this trainee&apos;s record. This browser remembers the choice.
       </p>
       {units.map((unit) => (
         <div key={unit} className="mt-4">
-          <h3 className="text-sm text-readout/60">{unit}</h3>
+          <h3 className="text-sm text-body">{unit}</h3>
           <ul className="mt-1.5 flex flex-col gap-1.5">
             {trainees.filter((t) => t.unit === unit).map((t) => (
               <li key={t.id}>
                 <button
-                  className="press min-h-9 w-full border border-readout/40 px-3 py-2 text-left text-sm"
+                  className="press choice min-h-9 w-full border border-rule bg-paper px-3 py-2 text-left text-sm"
                   onClick={() => onPick(t.id)}
                 >
                   {fullName(t)}
@@ -492,8 +492,8 @@ export default function Simulator({ replay = null }) {
   // The view is kept clear: every control and readout lives in the
   // instrument column beside it (below it on a narrow screen).
   return (
-    <div className="fixed inset-0 flex flex-col bg-panel text-readout [--focus:var(--color-readout)] md:flex-row">
-      <div className="relative min-h-0 flex-1">
+    <div className="fixed inset-0 flex flex-col bg-paper text-ink md:flex-row">
+      <div className="relative min-h-0 flex-1 bg-sky">
         <Scene
           scenario={scenario}
           lighting={shown ? shown.lighting : 'day'}
@@ -505,10 +505,10 @@ export default function Simulator({ replay = null }) {
         />
       </div>
 
-      <aside className="flex max-h-[55vh] w-full shrink-0 flex-col overflow-y-auto border-t border-panel-rule md:max-h-none md:w-80 md:border-l md:border-t-0">
+      <aside className="flex max-h-[55vh] w-full shrink-0 flex-col overflow-y-auto border-t border-rule md:max-h-none md:w-80 md:border-l md:border-t-0">
         <div className="px-5 pt-4">
-          <h1 className="text-sm font-semibold">Counter-drone exercise</h1>
-          <dl className="mt-2 border-t border-panel-rule">
+          <h1 className="text-base font-bold tracking-tight">Counter-drone exercise</h1>
+          <dl className="mt-2 border-t border-rule">
             {me && !replay && <Readout label="Trainee" value={fullName(me)} />}
             <Readout label="Elapsed" value={formatClock(elapsed)} />
             <Readout label="Conditions" value={shown ? (shown.lighting === 'night' ? 'Night' : 'Day') : 'Pending'} />
@@ -534,7 +534,7 @@ export default function Simulator({ replay = null }) {
                 This reruns a recorded session from its stored seed: the same contacts, of the same
                 types, appear at the same moments on the same paths.
               </p>
-              <p className="mt-2 text-sm text-readout/60">
+              <p className="mt-2 text-sm text-body">
                 A replay is scored but not saved, so the original record and the trainee&apos;s
                 averages are not affected.
               </p>
@@ -551,7 +551,7 @@ export default function Simulator({ replay = null }) {
                 and in groups. Flag each one as soon as you see it, then classify it and choose a
                 response.
               </p>
-              <p className="mt-2 text-sm text-readout/60">
+              <p className="mt-2 text-sm text-body">
                 Graded on how quickly you detect, how accurately you classify and whether the
                 response is correct. Not every contact is a threat. The rings on the ground are 100 m
                 apart, measured from your post; a contact&apos;s shadow shows which it is over.
@@ -590,7 +590,7 @@ export default function Simulator({ replay = null }) {
           )}
           {phase === 'error' && (
             <>
-              <h2 className="text-sm font-semibold text-fail-lit">Session not saved</h2>
+              <h2 className="text-sm font-semibold text-fail">Session not saved</h2>
               <p className="mt-1 text-sm">{error}</p>
               <button className={`${PRIMARY} mt-4`} onClick={() => save(pending.current)}>
                 Retry save
@@ -602,17 +602,17 @@ export default function Simulator({ replay = null }) {
         {atRest && (
           <p className="mt-auto px-5 pb-4 text-sm">
             {replay ? (
-              <Link href={`/dashboard/${replay.traineeId}`} className="underline underline-offset-4">
+              <Link href={`/dashboard/${replay.traineeId}`} className="link-wipe text-accent">
                 Back to the session record
               </Link>
             ) : (
               <span className="flex flex-wrap gap-x-5 gap-y-1">
                 {me && (
-                  <button className="underline underline-offset-4" onClick={() => pickTrainee(null)}>
+                  <button className="link-wipe text-accent" onClick={() => pickTrainee(null)}>
                     Change trainee
                   </button>
                 )}
-                <Link href="/" className="underline underline-offset-4">
+                <Link href="/" className="link-wipe text-accent">
                   Leave the simulator
                 </Link>
               </span>

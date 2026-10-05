@@ -8,14 +8,14 @@ export const metadata = {
 export default function DashboardLayout({ children }) {
   return (
     <div className="mx-auto w-full min-w-0 max-w-5xl flex-1 px-6 pb-16">
-      <header className="flex items-baseline justify-between gap-6 border-b border-ink py-4">
-        <Link href="/dashboard" className="font-semibold underline-offset-4 hover:underline">
+      <header className="flex items-baseline justify-between gap-6 border-b border-rule py-4">
+        <Link href="/dashboard" className="text-base font-bold tracking-tight link-wipe">
           <span data-instructor-only>Instructor dashboard</span>
           <span data-trainee-only>Trainee record</span>
         </Link>
         <div className="flex flex-wrap items-baseline justify-end gap-x-6 gap-y-2">
           <RoleToggle />
-          <Link href="/" className="no-print text-sm underline underline-offset-4">
+          <Link href="/" className="no-print link-wipe text-sm text-accent">
             Trainer home
           </Link>
         </div>

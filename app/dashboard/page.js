@@ -20,7 +20,7 @@ const nightLimits = `${limits('night')} rather than ${limits('day')}`;
 // Reads live session data — never prerender at build time.
 export const dynamic = 'force-dynamic';
 
-const TH = 'border-b border-ink py-2 pr-6 text-sm font-medium text-ink/70';
+const TH = 'border-b border-rule py-3 pr-6 text-sm font-medium text-body';
 const TD = 'border-b border-rule py-3 pr-6';
 const SKILLS = Object.keys(SKILL_LABELS);
 
@@ -53,13 +53,13 @@ export default async function DashboardPage() {
 
       {/* Instructor view: every unit and trainee */}
       <div data-instructor-only>
-      <h1 className="text-2xl font-semibold">Units</h1>
-      <p className="mt-1 max-w-prose text-sm text-ink/70">
+      <h1 className="text-3xl font-bold tracking-tight">Units</h1>
+      <p className="mt-1 max-w-prose text-sm text-body">
         Each unit&apos;s combined record across its trainees. The three skills are scored out of
         100 and averaged over completed sessions; the weakest is marked.
       </p>
 
-      <div className="relative mt-6 overflow-x-auto">
+      <div className="relative mt-6 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
         <table className="w-full min-w-[56rem] text-left">
           <thead>
             <tr>
@@ -79,8 +79,8 @@ export default async function DashboardPage() {
           </thead>
           <tbody>
             {units.map((unit) => (
-              <tr key={unit.unit}>
-                <th scope="row" className={`${TD} font-medium`}>
+              <tr key={unit.unit} className="row-hover">
+                <th scope="row" className={`${TD} whitespace-nowrap font-medium`}>
                   {unit.unit}
                 </th>
                 <td className={`${TD} text-right`}><Count value={unit.trainees} /></td>
@@ -89,7 +89,7 @@ export default async function DashboardPage() {
                 {SKILLS.map((skill) => (
                   <SkillCell key={skill} unit={unit} skill={skill} />
                 ))}
-                <td className={`${TD} ${unit.weakest ? 'font-semibold text-fail' : 'text-ink/50'}`}>
+                <td className={`${TD} ${unit.weakest ? 'font-semibold text-fail' : 'text-body/70'}`}>
                   {unit.weakest ? SKILL_LABELS[unit.weakest] : 'No sessions yet'}
                 </td>
                 <td className={`${TD} text-right`}><Count value={unit.falsePositives} /></td>
@@ -107,12 +107,12 @@ export default async function DashboardPage() {
         </table>
       </div>
 
-      <h2 className="mt-14 text-2xl font-semibold">Trainees</h2>
-      <p className="mt-1 max-w-prose text-sm text-ink/70">
+      <h2 className="mt-16 text-3xl font-bold tracking-tight">Trainees</h2>
+      <p className="mt-1 max-w-prose text-sm text-body">
 Grouped by unit. Average composite score is out of 100 and covers completed sessions only.
       </p>
 
-      <div className="mt-6 overflow-x-auto">
+      <div className="mt-6 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
         <table className="w-full text-left">
           <thead>
             <tr>
@@ -131,9 +131,9 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
                   </th>
                 </tr>
                 {trainees.filter((trainee) => trainee.unit === unit).map((trainee) => (
-                  <tr key={trainee.id}>
+                  <tr key={trainee.id} className="row-hover">
                     <td className={TD}>
-                      <Link href={`/dashboard/${trainee.id}`} className="font-medium underline underline-offset-4">
+                      <Link href={`/dashboard/${trainee.id}`} className="link-wipe font-medium text-accent">
                         {fullName(trainee)}
                       </Link>
                     </td>
@@ -155,15 +155,15 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
         </table>
       </div>
 
-      <h2 className="mt-14 text-2xl font-semibold">Difficulty and conditions</h2>
-      <p className="mt-1 max-w-prose text-sm text-ink/70">
+      <h2 className="mt-16 text-3xl font-bold tracking-tight">Difficulty and conditions</h2>
+      <p className="mt-1 max-w-prose text-sm text-body">
         Set each trainee&apos;s base level and lighting; the trainee cannot change either. The
         system then recommends a level from their recent scores. The base level is the floor: the
         next session runs at whichever is higher. Night is harder to see in, so detection is scored on looser limits there
         ({nightLimits}), and a night session is not marked down for the condition.
       </p>
 
-      <div className="relative mt-6 overflow-x-auto">
+      <div className="relative mt-6 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
         <table className="w-full min-w-[56rem] text-left">
           <thead>
             <tr>
@@ -175,10 +175,10 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
           </thead>
           <tbody>
             {trainees.map((trainee, i) => (
-              <tr key={trainee.id}>
+              <tr key={trainee.id} className="row-hover">
                 <th scope="row" className={`${TD} align-top font-medium`}>
                   {fullName(trainee)}
-                  <span className="block text-sm font-normal text-ink/70">{trainee.unit}</span>
+                  <span className="block text-sm font-normal text-body">{trainee.unit}</span>
                 </th>
                 <td className={`${TD} align-top`}>
                   <AssignmentControls

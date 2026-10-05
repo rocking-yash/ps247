@@ -59,20 +59,31 @@ const COMPOSITE = [
   ["Each missed contact", -SCORING.missedPenalty],
 ];
 
-const SECTION = "scroll-mt-14 border-b border-rule py-16 sm:py-20";
-const WRAP = "mx-auto w-full max-w-5xl px-6";
+const SECTION = "scroll-mt-14 border-b border-rule py-20 sm:py-24";
+const WRAP = "mx-auto w-full max-w-6xl px-6";
 // Section headings pin under the nav while their section scrolls past. The
 // pseudo-element only widens the paper behind the pinned heading; it takes
 // up no space.
-const H2 = "text-2xl font-semibold sticky top-14 z-10 bg-paper before:absolute before:inset-x-0 before:-inset-y-3 before:-z-10 before:bg-paper before:content-['']";
-const LEAD = "mt-2 max-w-prose text-ink/70";
+const H2 = "text-3xl font-bold tracking-tight sticky top-14 z-10 bg-paper before:absolute before:inset-x-0 before:-inset-y-3 before:-z-10 before:bg-paper before:content-['']";
+const LEAD = "mt-3 max-w-prose text-lg text-body";
+const CARD = "card-hover rounded-xl border border-rule bg-paper p-6";
+const PRIMARY = "press bg-accent px-5 py-2.5 font-medium text-white";
+const SECONDARY = "press border border-rule bg-paper px-5 py-2.5 font-medium";
+
+// Four things the page goes on to show, in a strip under the hero.
+const AT_A_GLANCE = [
+  ["Three graded skills", "Detect, classify and respond, scored separately"],
+  ["An open marking scheme", "A decision table anyone can read"],
+  ["Seeded scenarios", "Never repeated, always replayable"],
+  ["After-action review", "For each trainee and each unit"],
+];
 
 function Figure({ label, value, note }) {
   return (
-    <div data-rule="top" className="border-t border-ink pt-3">
-      <dt className="text-sm text-ink/70">{label}</dt>
-      <dd className="mt-1 text-5xl font-semibold">{value}</dd>
-      <dd className="mt-1 text-sm text-ink/70">{note}</dd>
+    <div className={CARD}>
+      <dt className="text-sm font-medium text-body">{label}</dt>
+      <dd className="mt-2 text-5xl font-bold tracking-tight">{value}</dd>
+      <dd data-rule="top" className="mt-4 border-t border-rule pt-3 text-sm text-body">{note}</dd>
     </div>
   );
 }
@@ -100,27 +111,45 @@ export default async function Home() {
       <ScrollMotion />
 
       <main>
-        <section
-          id="top"
-          className="relative flex min-h-svh flex-col justify-end bg-panel pt-14 text-readout [--focus:var(--color-readout)]"
-        >
-          <AmbientSky />
-          <div data-parallax className={`${WRAP} relative pb-14 sm:pb-20`}>
-            <h1 className="resolve max-w-3xl text-4xl font-semibold leading-tight sm:text-5xl sm:leading-tight">
-              Counter-drone training that grades the decision, not the aim.
-            </h1>
-            <p className="resolve mt-4 max-w-xl text-lg text-readout/80" style={{ "--step": 1 }}>
-              A browser exercise in detecting, classifying and responding to drone contacts. Every
-              decision is scored and kept for after-action review.
-            </p>
-            <div className="resolve mt-8 flex flex-wrap gap-3" style={{ "--step": 2 }}>
-              <Link href="/simulator" className="press bg-readout px-5 py-2.5 font-medium text-panel">
-                Run a session
-              </Link>
-              <Link href="/dashboard" className="press border border-readout px-5 py-2.5 font-medium">
-                Review performance
-              </Link>
+        <section id="top" className="pt-14">
+          <div className={`${WRAP} grid gap-10 py-14 sm:py-20 lg:grid-cols-[0.82fr_1.18fr] lg:items-stretch lg:gap-12`}>
+            <div data-parallax className="lg:self-center">
+              <h1 className="resolve text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl sm:leading-[1.06] lg:text-6xl lg:leading-[1.04]">
+                Counter-drone training that grades the <span className="text-accent">decision</span>, not
+                the aim.
+              </h1>
+              <p className="resolve mt-6 max-w-xl text-lg text-body" style={{ "--step": 1 }}>
+                A browser exercise in detecting, classifying and responding to drone contacts. Every
+                decision is scored and kept for after-action review.
+              </p>
+              <div className="resolve mt-8 flex flex-wrap gap-3" style={{ "--step": 2 }}>
+                <Link href="/simulator" className={PRIMARY}>
+                  Run a session
+                </Link>
+                <Link href="/dashboard" className={SECONDARY}>
+                  Review performance
+                </Link>
+              </div>
             </div>
+
+            {/* The simulator's own scene, running live. No photograph could stand in for it. */}
+            <figure className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-rule bg-sky lg:aspect-auto lg:min-h-[32rem]">
+              <AmbientSky />
+              <figcaption className="absolute bottom-3 left-3 rounded-md bg-ink/75 px-2.5 py-1 text-sm text-white">
+                Live view from the simulator
+              </figcaption>
+            </figure>
+          </div>
+
+          <div className={`${WRAP} pb-16`}>
+            <ul className="grid gap-x-8 gap-y-5 rounded-2xl bg-tint px-6 py-6 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-rule lg:gap-x-0">
+              {AT_A_GLANCE.map(([title, text]) => (
+                <li key={title} className="lg:px-6 lg:first:pl-0 lg:last:pr-0">
+                  <p className="font-semibold">{title}</p>
+                  <p className="mt-1 text-sm text-body">{text}</p>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
@@ -133,15 +162,21 @@ export default async function Home() {
             </p>
             <ol data-reveal-rows className="mt-10 grid gap-10 md:grid-cols-3">
               {SKILLS.map((skill, i) => (
-                <li key={skill.name} data-rule="top" className="border-t border-ink pt-3">
-                  <h3 className="flex items-baseline gap-3 text-xl font-semibold">
-                    <span aria-hidden="true" className="text-ink/50">
+                <li
+                  key={skill.name}
+                  className={`${CARD} relative md:after:absolute md:after:-right-10 md:after:top-9 md:after:w-10 md:after:text-center md:after:text-xl md:after:text-body md:after:content-['→'] md:last:after:hidden`}
+                >
+                  <h3 className="flex items-center gap-3 text-xl font-semibold">
+                    <span
+                      aria-hidden="true"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-tint text-lg font-bold text-accent"
+                    >
                       {i + 1}
                     </span>
                     {skill.name}
                   </h3>
-                  <p className="mt-3">{skill.measures}</p>
-                  <p className="mt-3 text-sm text-ink/70">{skill.scored}</p>
+                  <p data-rule="top" className="mt-4 border-t border-rule pt-4">{skill.measures}</p>
+                  <p className="mt-3 text-sm text-body">{skill.scored}</p>
                   <p className="mt-3 text-sm">
                     <span className="font-semibold"><Count value={skill.weight} onView /></span> of 100 points
                   </p>
@@ -158,7 +193,7 @@ export default async function Home() {
               A response is marked against this table and nothing else. It is plain data in the
               source, not a trained model, so an instructor can read, question and change it.
             </p>
-            <div className="relative mt-8 overflow-x-auto">
+            <div className="relative mt-8 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
               <table className="w-full min-w-[40rem] text-left">
                 <thead>
                   <tr>
@@ -249,7 +284,7 @@ export default async function Home() {
               {hasSessions && " The rows below are recent contacts from real sessions, with trainee names withheld."}
             </p>
             {hasSessions ? (
-              <div className="relative mt-8 overflow-x-auto">
+              <div className="relative mt-8 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
                 <table className="w-full min-w-[52rem] text-left">
                   <EventTableHead />
                   <tbody data-reveal-rows>
@@ -283,14 +318,14 @@ export default async function Home() {
               cannot learn a layout by heart, because the layout they practised on is not issued
               again.
             </p>
-            <p data-reveal className="mt-3 max-w-prose text-ink/70">
+            <p data-reveal className="mt-3 max-w-prose text-body">
               The seed and level are stored with the session, so the same numbers regenerate
               exactly what the trainee saw when an instructor reviews it.
             </p>
             {data.ok && data.layouts.length > 0 && (
-              <div className="relative mt-8 overflow-x-auto">
+              <div className="relative mt-8 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
                 <table className="w-full min-w-[44rem] text-left text-sm">
-                  <caption className="pb-3 text-left text-ink/70">
+                  <caption className="pb-3 text-left text-body">
                     The most recent stored seeds and the layout each one regenerates.
                   </caption>
                   <thead>
@@ -334,7 +369,7 @@ export default async function Home() {
               A trainee is picked from a list before a session, and the browser remembers the
               choice. There are deliberately no passwords, no hashing and no login sessions.
             </p>
-            <p data-reveal className="mt-3 max-w-prose text-ink/70">
+            <p data-reveal className="mt-3 max-w-prose text-body">
               In a real deployment a trainee&apos;s identity would come from the unit&apos;s own
               system. Building a second login here would add something to secure and maintain,
               and nothing the problem statement asks for. The instructor and trainee views are a
@@ -344,7 +379,7 @@ export default async function Home() {
         </section>
       </main>
 
-      <footer className="text-sm text-ink/70">
+      <footer className="bg-tint text-sm text-body">
         <div className={`${WRAP} flex flex-col gap-x-10 gap-y-1 py-8 sm:flex-row`}>
           <span>Smart India Hackathon 2026</span>
           <span>Problem statement SIH26247</span>

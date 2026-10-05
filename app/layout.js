@@ -4,7 +4,7 @@ import "./globals.css";
 const plex = IBM_Plex_Sans({
   variable: "--font-plex",
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata = {

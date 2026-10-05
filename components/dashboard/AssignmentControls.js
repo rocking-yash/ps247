@@ -9,7 +9,7 @@ const LIGHTING_OPTIONS = [
   ['night', 'Night'],
 ];
 
-const FIELD = 'border border-ink bg-paper px-2 py-1';
+const FIELD = 'rounded-lg border border-rule bg-paper px-2 py-1.5';
 
 // Instructor controls for one trainee: base difficulty level and lighting.
 // Nothing is saved until "Set" is pressed.
@@ -79,11 +79,11 @@ export default function AssignmentControls({ traineeId, traineeName, baseLevel, 
       <button
         type="submit"
         disabled={status === 'saving' || !changed}
-        className="press border border-ink px-3 py-1 font-medium disabled:cursor-not-allowed disabled:opacity-40"
+        className="press bg-accent px-4 py-1.5 font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
       >
         Set
       </button>
-      <span role="status" className={status === 'failed' ? 'text-fail' : 'text-ink/70'}>
+      <span role="status" className={status === 'failed' ? 'text-fail' : 'text-body'}>
         {status === 'saving' && 'Saving.'}
         {status === 'saved' && !changed && 'Saved.'}
         {status === 'failed' && 'Could not save.'}

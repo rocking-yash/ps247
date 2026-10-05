@@ -30,8 +30,8 @@ export default function RoleToggle() {
           type="button"
           aria-pressed={role === value}
           onClick={() => setStored(ROLE_KEY, value)}
-          className={`press border border-ink px-3 py-1 font-medium first:border-r-0 ${
-            role === value ? 'bg-ink text-paper' : ''
+          className={`border px-3 py-1.5 font-medium first:rounded-l-lg first:border-r-0 last:rounded-r-lg ${
+            role === value ? 'border-accent bg-accent text-white' : 'border-rule bg-paper'
           }`}
         >
           {label}

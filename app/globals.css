@@ -1,19 +1,17 @@
 @import "tailwindcss";
 
 @theme {
-  /* Review sheet: /, /dashboard */
-  --color-paper: #f7f7f4;
-  --color-ink: #15202b;
-  --color-rule: #c9cdd2;
-  --color-fail: #9b2c2c;
-  --color-pass: #2c6e49;
-
-  /* Instrument panel: /simulator. Pass and fail are lifted for the dark ground. */
-  --color-panel: #0d1217;
-  --color-panel-rule: #2b343d;
-  --color-readout: #e4e7ea;
-  --color-pass-lit: #7cc79c;
-  --color-fail-lit: #e88f8f;
+  /* One palette for all three surfaces. Pass and fail carry meaning only
+     (verdicts, statuses); the accent is for actions and the current choice. */
+  --color-paper: #ffffff;   /* surface */
+  --color-tint: #f4f7fb;    /* quiet fills: strips, badges, footers */
+  --color-ink: #0d1b2a;     /* headings and primary text */
+  --color-body: #5a6b7d;    /* secondary text */
+  --color-accent: #1a6cf0;
+  --color-rule: #e2e8f0;    /* hairlines and card borders */
+  --color-pass: #16a34a;
+  --color-fail: #dc2626;
+  --color-sky: #0b121a;     /* behind the 3D view, which stays dark */
 }
 
 @theme inline {
@@ -35,7 +33,7 @@ html:not([data-role='trainee']) [data-trainee-only] {
   display: none;
 }
 
-/* --focus is overridden on the dark simulator so the ring stays visible. */
+/* --focus can be overridden where the default ink ring would not show. */
 :focus-visible {
   outline: 2px solid var(--focus, var(--color-ink));
   outline-offset: 2px;
@@ -121,7 +119,7 @@ html.reveal-ready [data-rule]::before {
 
 html.reveal-ready [data-rule='top']::before {
   top: -1px;
-  background: var(--color-ink);
+  background: var(--color-rule);
 }
 
 html.reveal-ready [data-rule='bottom']::before {
@@ -162,7 +160,90 @@ html.reveal-ready [data-rule][data-ruled]::before {
 
 @media (prefers-reduced-motion: no-preference) {
   .link-wipe::after {
-    transition: transform 200ms ease-out;
+    transition: transform 180ms ease-out;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Hover. Each state is an overlay or a transform, faded or moved in 160ms;
+   with reduced motion the same states apply at once, with no transition.
+   --------------------------------------------------------------------------- */
+
+/* Buttons and button-like controls (.press): a slight lift, and a wash of
+   the control's own text colour over its background. */
+.press {
+  position: relative;
+}
+
+.press::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.press:hover:not(:disabled)::after {
+  opacity: 0.08;
+}
+
+.press:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+/* Cards: the border darkens and the surface takes a faint tint. This is a
+   second border and fill laid over the card and faded in; nothing scales. */
+.card-hover {
+  position: relative;
+}
+
+.card-hover::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1px solid #9fb1c8;
+  background: rgb(26 108 240 / 0.035);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card-hover:hover::before {
+  opacity: 1;
+}
+
+/* Table rows that stand for a trainee or a unit: a faint tint under the row.
+   (A row cannot carry an overlay, so this one fades its background.) */
+.row-hover:hover {
+  background: var(--color-tint);
+}
+
+/* Simulator options: an accent outline shows which one is about to be picked. */
+.choice::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 2px solid var(--color-accent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.choice:hover::before {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .press::after,
+  .card-hover::before,
+  .choice::before {
+    transition: opacity 160ms ease-out;
+  }
+
+  .row-hover {
+    transition: background-color 160ms ease-out;
   }
 }
 
@@ -172,6 +253,10 @@ html.reveal-ready [data-rule][data-ruled]::before {
 
 /* Pressed: the control visibly goes down, not just a colour change. The
    inset shadow alone carries it when motion is reduced. */
+.press {
+  border-radius: 0.5rem;
+}
+
 .press:active:not(:disabled) {
   box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.3);
 }
@@ -232,7 +317,7 @@ html.reveal-ready [data-rule][data-ruled]::before {
 
 @media (prefers-reduced-motion: no-preference) {
   .press {
-    transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+    transition: transform 160ms ease-out, box-shadow 160ms ease-out;
   }
 
   .press:active:not(:disabled) {

@@ -50,12 +50,12 @@ function SessionGroup({ session }) {
             {replayable ? (
               <Link
                 href={`/simulator?replay=${session._id}`}
-                className="no-print underline underline-offset-4"
+                className="no-print link-wipe text-accent"
               >
                 Replay this scenario
               </Link>
             ) : (
-              <span className="text-ink/70">Recorded under an earlier scenario generator</span>
+              <span className="text-body">Recorded under an earlier scenario generator</span>
             )}
             <span className="ml-auto">
               Composite <span className="font-semibold">{session.scores.composite}</span>
@@ -72,9 +72,9 @@ function SessionGroup({ session }) {
 
 function Fact({ label, value }) {
   return (
-    <div>
-      <dt className="text-sm text-ink/70">{label}</dt>
-      <dd className="text-xl font-semibold">{value}</dd>
+    <div className="card-hover min-w-36 rounded-xl border border-rule bg-paper px-5 py-4">
+      <dt className="text-sm font-medium text-body">{label}</dt>
+      <dd className="mt-1 text-2xl font-bold tracking-tight">{value}</dd>
     </div>
   );
 }
@@ -113,11 +113,11 @@ export default async function TraineePage({ params }) {
 
   return (
     <>
-      <Link href="/dashboard" data-instructor-only className="no-print text-sm underline underline-offset-4">
+      <Link href="/dashboard" data-instructor-only className="no-print link-wipe text-sm text-accent">
         All trainees
       </Link>
-      <h1 className="mt-3 text-2xl font-semibold">{fullName(trainee)}</h1>
-      <dl className="mt-4 flex flex-wrap gap-x-12 gap-y-4">
+      <h1 className="mt-3 text-3xl font-bold tracking-tight">{fullName(trainee)}</h1>
+      <dl className="mt-5 flex flex-wrap gap-4">
         <Fact label="Unit" value={trainee.unit} />
         <Fact label="Sessions" value={<Count value={sessions.length} />} />
         <Fact label="Average composite" value={<Count value={avgComposite} />} />
@@ -131,7 +131,7 @@ export default async function TraineePage({ params }) {
 
       <section className="mt-10 border-t border-rule pt-4">
         <h2 className="text-lg font-semibold">Difficulty and conditions</h2>
-        <p className="mt-1 max-w-prose text-sm text-ink/70">
+        <p className="mt-1 max-w-prose text-sm text-body">
           The base level is the floor. The system recommends a level from recent scores, and the
           next session runs at whichever is higher. The instructor also sets the lighting. Night
           is harder to see in, so detection is scored on looser limits there ({nightLimits}).
@@ -146,13 +146,13 @@ export default async function TraineePage({ params }) {
         </div>
         <dl className="mt-4 grid gap-x-12 gap-y-4 sm:grid-cols-2">
           <div>
-            <dt className="text-sm text-ink/70">System recommends</dt>
+            <dt className="text-sm text-body">System recommends</dt>
             <dd>
               <SystemRecommends next={next} />
             </dd>
           </div>
           <div>
-            <dt className="text-sm text-ink/70">Next session</dt>
+            <dt className="text-sm text-body">Next session</dt>
             <dd>
               <NextSession next={next} />
             </dd>
@@ -162,12 +162,12 @@ export default async function TraineePage({ params }) {
 
       <section className="mt-12">
         <h2 className="text-lg font-semibold">Verdicts</h2>
-        <p className="mt-1 max-w-prose text-sm text-ink/70">
+        <p className="mt-1 max-w-prose text-sm text-body">
           Every contact the trainee faced, latest session first.
           {earlier.length > 0 && ` The ${recent.length} most recent sessions are shown; earlier ones open below.`}
           {events.length > 0 && ` ${events.length} in total: ${tally}.`}
         </p>
-        <div className="relative mt-4 overflow-x-auto">
+        <div className="relative mt-4 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
           <table className="w-full min-w-[52rem] text-left">
             <EventTableHead />
             {recent.map((session) => (
@@ -191,7 +191,7 @@ export default async function TraineePage({ params }) {
               closedLabel={`Show ${earlier.length} earlier ${earlier.length === 1 ? 'session' : 'sessions'}`}
               openLabel="Hide earlier sessions"
             >
-              <div className="relative overflow-x-auto pt-2">
+              <div className="relative overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2 pt-2">
                 <table className="w-full min-w-[52rem] text-left">
                   <EventTableHead />
                   {earlier.map((session) => (
@@ -206,7 +206,7 @@ export default async function TraineePage({ params }) {
 
       <section className="mt-14">
         <h2 className="text-lg font-semibold">Composite score by session</h2>
-        <p className="mt-1 max-w-prose text-sm text-ink/70">
+        <p className="mt-1 max-w-prose text-sm text-body">
           Out of 100, completed sessions in the order they were run. The dashed lines are the
           adaptive difficulty thresholds: a three-session average of {LEVEL_UP_AT} or more raises
           the level, {LEVEL_DOWN_AT} or less lowers it.

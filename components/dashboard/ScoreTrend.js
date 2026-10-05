@@ -13,7 +13,7 @@ function TrendTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const point = payload[0].payload;
   return (
-    <div className="border border-ink bg-paper px-3 py-2 text-xs">
+    <div className="border border-rule bg-paper px-3 py-2 text-xs">
       <p className="font-semibold">Session {point.number}</p>
       <p>{point.date}</p>
       <p className="mt-1">

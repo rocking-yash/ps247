@@ -15,7 +15,7 @@ export default function Disclosure({ closedLabel, openLabel, children }) {
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen(!open)}
-        className="press no-print border border-ink px-3 py-1.5 text-sm font-medium"
+        className="press no-print border border-rule px-3 py-1.5 text-sm font-medium"
       >
         {open ? openLabel : closedLabel}
       </button>

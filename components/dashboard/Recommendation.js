@@ -13,12 +13,12 @@ const REASON = {
 
 export function SystemRecommends({ next }) {
   if (next.recommended === null) {
-    return <span className="text-ink/70">Nothing yet. It needs two completed sessions to go on.</span>;
+    return <span className="text-body">Nothing yet. It needs two completed sessions to go on.</span>;
   }
   return (
     <>
       <span className="font-semibold">Level {next.recommended}</span>
-      <span className="block text-sm text-ink/70">
+      <span className="block text-sm text-body">
         The last {next.basedOn} completed sessions averaged {Math.round(next.average)};{' '}
         {REASON[next.direction]}.
       </span>
@@ -33,12 +33,12 @@ export function NextSession({ next }) {
       <span className="font-semibold">
         Level {next.level}, {next.lighting}
       </span>
-      <span className="block text-sm text-ink/70">
+      <span className="block text-sm text-body">
         {next.setBy === 'adaptive' && 'Above the base level, on the system’s recommendation.'}
         {next.setBy === 'instructor' && held && 'Held at the base level; the system would have gone lower.'}
         {next.setBy === 'instructor' && !held && 'At the base level.'}
       </span>
-      <span className="mt-1 block text-sm text-ink/70">
+      <span className="mt-1 block text-sm text-body">
         {next.focus
           ? `Shaped to practise ${SKILL_NAMES[next.focus].toLowerCase()}, the weak link.`
           : 'No practice focus: no skill is weak enough to target.'}

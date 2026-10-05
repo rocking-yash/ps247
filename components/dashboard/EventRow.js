@@ -4,7 +4,7 @@
 import { DRONE_LABELS, RESPONSE_LABELS, VERDICT_LABELS } from '@/lib/constants';
 import { formatSeconds } from '@/lib/format';
 
-export const TH = 'border-b border-ink py-2 pr-5 text-sm font-medium text-ink/70';
+export const TH = 'border-b border-rule py-3 pr-5 text-sm font-medium text-body';
 export const TD = 'border-b border-rule py-3.5 pr-5 align-baseline';
 
 // Tick or cross beside a graded answer. The colour repeats what the shape
@@ -28,7 +28,7 @@ function Mark({ ok }) {
 }
 
 function Graded({ label, ok }) {
-  if (!label) return <span className="text-ink/50">Not reached</span>;
+  if (!label) return <span className="text-body/70">Not reached</span>;
   return (
     <>
       <Mark ok={ok} />

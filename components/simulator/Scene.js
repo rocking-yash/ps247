@@ -1,78 +1,11 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
-import { BackSide, Color } from 'three';
+import { useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Billboard, PerspectiveCamera } from '@react-three/drei';
-import { ASSET_POSITION, contactState } from '@/lib/scenario';
-
-// The two conditions. The sky runs from a hazy horizon up to a clearer
-// zenith, and fog pulls distant things towards the haze, so range reads.
-//
-// Night is harder, not just darker: the silhouettes glow faintly at close to
-// the sky tone at the heights contacts fly, and the fog colour is that tone,
-// so a distant contact has almost no outline and only separates from the sky
-// as it closes or drops against the paler horizon.
-const LIGHTING = {
-  day: {
-    zenith: '#7f9db8',
-    horizon: '#d6dde2',
-    fog: ['#d6dde2', 250, 1100],
-    hemisphere: ['#dfe9f2', '#4b5238', 1.1],
-    sun: { position: [120, 200, 80], intensity: 1.4, color: '#ffffff' },
-    silhouette: { color: '#1c1f24', rotorColor: '#2b3038' },
-    shadow: 0.3,
-  },
-  night: {
-    zenith: '#0a1017',
-    horizon: '#1f2b37',
-    fog: ['#16202a', 150, 800],
-    hemisphere: ['#4a5868', '#1c232b', 1.3],
-    sun: { position: [-80, 160, 60], intensity: 0.25, color: '#9fb3c8' },
-    silhouette: { color: '#1c1f24', rotorColor: '#2b3038', emissive: '#0a1016' },
-    shadow: 0.3,
-  },
-};
-
-const SKY_VERTEX = `
-  varying vec3 vDirection;
-  void main() {
-    vDirection = normalize(position);
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-// Haze sits in the first few degrees above the horizon and clears with height.
-const SKY_FRAGMENT = `
-  uniform vec3 zenith;
-  uniform vec3 horizon;
-  varying vec3 vDirection;
-  void main() {
-    float height = clamp(normalize(vDirection).y, 0.0, 1.0);
-    gl_FragColor = vec4(mix(horizon, zenith, 1.0 - exp(-height * 4.0)), 1.0);
-    #include <colorspace_fragment>
-  }
-`;
-
-function Sky({ zenith, horizon }) {
-  const uniforms = useMemo(
-    () => ({ zenith: { value: new Color(zenith) }, horizon: { value: new Color(horizon) } }),
-    [zenith, horizon],
-  );
-  return (
-    <mesh scale={1400}>
-      <sphereGeometry args={[1, 32, 16]} />
-      <shaderMaterial
-        key={zenith + horizon}
-        side={BackSide}
-        depthWrite={false}
-        uniforms={uniforms}
-        vertexShader={SKY_VERTEX}
-        fragmentShader={SKY_FRAGMENT}
-      />
-    </mesh>
-  );
-}
+import Environment, { CONDITIONS, useBlobTexture } from './Environment';
+import { contactState } from '@/lib/scenario';
+import { useReducedMotion } from '@/lib/useReducedMotion';
 
 // Fixed observation post, 12 m up and pitched ~11° above level, so the whole
 // approach from horizon to the asset stays in frame and enough ground is
@@ -217,6 +150,7 @@ function Contact({ contact, status, active, silhouette, shadowOpacity, getElapse
   const ringMaterial = useRef();
   const flaggedAt = useRef(null);
   const ended = useRef(false);
+  const blob = useBlobTexture();
   const Model = MODELS[contact.droneType];
   const live = status === 'pending' || status === 'flagged';
 
@@ -273,8 +207,8 @@ function Contact({ contact, status, active, silhouette, shadowOpacity, getElapse
   return (
     <>
       <mesh ref={shadow} visible={false} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[4.5, 24]} />
-        <meshBasicMaterial color="#000000" transparent opacity={shadowOpacity} depthWrite={false} />
+        <planeGeometry args={[11, 11]} />
+        <meshBasicMaterial map={blob} color="#0c1420" transparent opacity={shadowOpacity} depthWrite={false} />
       </mesh>
       <group ref={group} visible={false} position={[0, -1000, 0]}>
         <group ref={body}>
@@ -299,53 +233,14 @@ function Contact({ contact, status, active, silhouette, shadowOpacity, getElapse
   );
 }
 
-// Range rings every 100 m from the observation post. Each is wider than the
-// last so that, seen at a shallow angle, they all stay about as thick on screen.
-const RANGE_RINGS = [100, 200, 300, 400, 500].map((range) => [range, (range * range) / 6000]);
-
-export function Terrain() {
-  return (
-    <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[3000, 3000]} />
-        <meshStandardMaterial color="#5f6b4c" />
-      </mesh>
-      {RANGE_RINGS.map(([range, width]) => (
-        <mesh key={range} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
-          <ringGeometry args={[range - width / 2, range + width / 2, 160]} />
-          <meshStandardMaterial color="#525d41" />
-        </mesh>
-      ))}
-      {/* Defended compound */}
-      <group position={ASSET_POSITION}>
-        <mesh position={[0, 2.5, 0]}>
-          <boxGeometry args={[14, 5, 9]} />
-          <meshStandardMaterial color="#8d8a7f" />
-        </mesh>
-        <mesh position={[-12, 1.75, 4]}>
-          <boxGeometry args={[6, 3.5, 6]} />
-          <meshStandardMaterial color="#7d7a70" />
-        </mesh>
-        <mesh position={[11, 4, -3]}>
-          <cylinderGeometry args={[0.25, 0.25, 8, 8]} />
-          <meshStandardMaterial color="#4a4a48" />
-        </mesh>
-      </group>
-    </>
-  );
-}
-
 // statuses: one per contact, same order as scenario.drones
 export default function Scene({ scenario, lighting = 'day', statuses, activeIndex, getElapsed, onDetect, onEnd }) {
-  const light = LIGHTING[lighting] ?? LIGHTING.day;
+  const light = CONDITIONS[lighting] ?? CONDITIONS.day;
+  const still = useReducedMotion();
   return (
     <Canvas dpr={[1, 1.5]}>
       <ObserverCamera />
-      <Sky zenith={light.zenith} horizon={light.horizon} />
-      <fog attach="fog" args={light.fog} />
-      <hemisphereLight args={light.hemisphere} />
-      <directionalLight {...light.sun} />
-      <Terrain />
+      <Environment lighting={lighting} still={still} />
       {scenario?.drones.map((contact, i) => (
         <Contact
           key={`${scenario.seed}-${i}`}
