@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import RoleToggle from '@/components/dashboard/RoleToggle';
 
 export const metadata = {
   title: 'Instructor dashboard — Counter-Drone Trainer',
@@ -9,11 +10,15 @@ export default function DashboardLayout({ children }) {
     <div className="mx-auto w-full min-w-0 max-w-5xl flex-1 px-6 pb-16">
       <header className="flex items-baseline justify-between gap-6 border-b border-ink py-4">
         <Link href="/dashboard" className="font-semibold underline-offset-4 hover:underline">
-          Instructor dashboard
+          <span data-instructor-only>Instructor dashboard</span>
+          <span data-trainee-only>Trainee record</span>
         </Link>
-        <Link href="/" className="no-print text-sm underline underline-offset-4">
-          Trainer home
-        </Link>
+        <div className="flex flex-wrap items-baseline justify-end gap-x-6 gap-y-2">
+          <RoleToggle />
+          <Link href="/" className="no-print text-sm underline underline-offset-4">
+            Trainer home
+          </Link>
+        </div>
       </header>
       <main className="pt-8">{children}</main>
     </div>

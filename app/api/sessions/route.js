@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db';
-import { demoTrainee } from '@/lib/assignment';
+import { demoTrainee, findTrainee } from '@/lib/assignment';
 import { Session, judgeEvent, scoreSession } from '@/lib/models';
 import { skillProfile, weaknessSentence } from '@/lib/weakness';
 
@@ -26,6 +26,8 @@ export async function POST(request) {
 
   try {
     const judged = events.map(judgeEvent);
+    // Detection is scored against the limits for the condition that was assigned.
+    const lighting = body.conditions?.lighting === 'night' ? 'night' : 'day';
 
     // A replay is validated, judged and scored like any session, then handed
     // straight back. Nothing is written, so the original record and every
@@ -44,13 +46,16 @@ export async function POST(request) {
         replay: true,
         scenarioSeed,
         events: judged,
-        scores: scoreSession(judged),
-        weakness: weaknessSentence(skillProfile(judged)),
+        scores: scoreSession(judged, lighting),
+        weakness: weaknessSentence(skillProfile(judged, lighting)),
       });
     }
 
     await connectDB();
-    const traineeId = body.traineeId ?? (await demoTrainee())._id;
+    // Saved under the trainee who was picked; the shared demo trainee if none was.
+    const trainee = body.traineeId ? await findTrainee(body.traineeId) : await demoTrainee();
+    if (!trainee) return badRequest('No such trainee');
+    const traineeId = trainee._id;
 
     const session = await Session.create({
       traineeId,
@@ -65,7 +70,7 @@ export async function POST(request) {
       conditions: body.conditions,
       scenarioSeed,
       events: judged,
-      scores: scoreSession(judged),
+      scores: scoreSession(judged, lighting),
     });
 
     return Response.json({
@@ -75,7 +80,7 @@ export async function POST(request) {
       events: session.events,
       scores: session.scores,
       // Which skill let this session down, in one sentence.
-      weakness: weaknessSentence(skillProfile(judged)),
+      weakness: weaknessSentence(skillProfile(judged, lighting)),
     }, { status: 201 });
   } catch (err) {
     if (err.name === 'ValidationError' || err.name === 'CastError') {

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Scene from './Scene';
 import { buildScenario, newSeed } from '@/lib/scenario';
+import { TRAINEE_KEY, setStored, useStored } from '@/lib/identity';
+import { fullName } from '@/lib/format';
 import {
   DRONE_TYPES, RESPONSES, DRONE_LABELS, RESPONSE_LABELS, VERDICT_LABELS,
 } from '@/lib/constants';
@@ -210,13 +212,66 @@ function ResultPanel({ result, replay, assignment, onRestart, onRetry }) {
 
 // The server decides level and lighting from the trainee's record.
 // Resolves to false if it cannot be reached.
-async function fetchAssignment() {
+async function fetchAssignment(traineeId) {
   try {
-    const res = await fetch('/api/sessions/next');
+    const res = await fetch(`/api/sessions/next?traineeId=${traineeId}`);
     return res.ok ? await res.json() : false;
   } catch {
     return false;
   }
+}
+
+// The picker's list. Resolves to false if it cannot be reached.
+async function fetchTrainees() {
+  try {
+    const res = await fetch('/api/trainees');
+    return res.ok ? await res.json() : false;
+  } catch {
+    return false;
+  }
+}
+
+// Who is about to train. The session is saved under the trainee picked here.
+function TraineePicker({ trainees, onPick, onRetry }) {
+  if (trainees === null) return <p className="text-sm">Loading trainees.</p>;
+  if (trainees === false) {
+    return (
+      <>
+        <p className="text-sm text-fail-lit">The list of trainees could not be loaded.</p>
+        <button className={`${BUTTON} mt-2`} onClick={onRetry}>
+          Try again
+        </button>
+      </>
+    );
+  }
+  if (trainees.length === 0) return <p className="text-sm">No trainees have been added yet.</p>;
+
+  const units = [...new Set(trainees.map((t) => t.unit))];
+  return (
+    <>
+      <h2 className="text-sm font-semibold">Who is training?</h2>
+      <p className="text-sm text-readout/60">
+        The session is saved to this trainee&apos;s record. This browser remembers the choice.
+      </p>
+      {units.map((unit) => (
+        <div key={unit} className="mt-4">
+          <h3 className="text-sm text-readout/60">{unit}</h3>
+          <ul className="mt-1.5 flex flex-col gap-1.5">
+            {trainees.filter((t) => t.unit === unit).map((t) => (
+              <li key={t.id}>
+                <button
+                  className="press min-h-9 w-full border border-readout/40 px-3 py-2 text-left text-sm"
+                  onClick={() => onPick(t.id)}
+                >
+                  {fullName(t)}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </>
+  );
 }
 
 const FOCUS_LABEL = { none: 'General', detect: 'Detection', classify: 'Classification', respond: 'Response' };
@@ -246,6 +301,12 @@ export default function Simulator({ replay = null }) {
   const [assignment, setAssignment] = useState(replayAssignment);
   // The assignment the current (or just finished) session is running under.
   const [running, setRunning] = useState(null);
+  // Everyone who can be picked: null until loaded, false if it failed. The
+  // pick itself lives in localStorage, so it survives between sessions.
+  const [trainees, setTrainees] = useState(null);
+  const storedId = useStored(TRAINEE_KEY);
+  const me = (trainees && trainees.find((t) => t.id === storedId)) || null;
+  const traineeId = me ? me.id : null;
 
   // Mirrors of state for callbacks fired from the render loop, which must not
   // act twice on a stale value.
@@ -274,28 +335,54 @@ export default function Simulator({ replay = null }) {
   }, [phase, getElapsed]);
 
   async function loadAssignment() {
-    if (replay) return;  // a replay's level and lighting are fixed
+    if (replay || !traineeId) return;  // a replay's level and lighting are fixed
     setAssignment(null);
-    setAssignment(await fetchAssignment());
+    setAssignment(await fetchAssignment(traineeId));
   }
 
+  async function loadTrainees() {
+    setTrainees(null);
+    setTrainees(await fetchTrainees());
+  }
+
+  // A replay is never saved, so it needs no trainee.
   useEffect(() => {
     if (replay) return;
     let ignore = false;
-    fetchAssignment().then((next) => {
-      if (!ignore) setAssignment(next);
+    fetchTrainees().then((list) => {
+      if (!ignore) setTrainees(list);
     });
     return () => {
       ignore = true;
     };
   }, [replay]);
 
+  // The assignment belongs to whoever is picked.
+  useEffect(() => {
+    if (replay || !traineeId) return;
+    let ignore = false;
+    fetchAssignment(traineeId).then((next) => {
+      if (!ignore) setAssignment(next);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [replay, traineeId]);
+
+  // Picking (or un-picking, with null) also returns to the start panel.
+  function pickTrainee(id) {
+    setAssignment(null);
+    setResult(null);
+    setPhase('idle');
+    setStored(TRAINEE_KEY, id);
+  }
+
   function begin() {
     // A fresh random seed every session; with the level it fixes the scenario.
     // A replay uses the recorded session's seed instead, so it is the same one.
     const next = buildScenario(replay ? replay.seed : newSeed(), assignment.level, assignment.focus ?? null);
     scenarioRef.current = next;
-    runningRef.current = assignment;
+    runningRef.current = { ...assignment, traineeId };
     setRunning(assignment);
     if (!replay) setAssignment(null);
     recordsRef.current = next.drones.map(() => BLANK);
@@ -340,6 +427,7 @@ export default function Simulator({ replay = null }) {
       endedAt: new Date().toISOString(),
       completed: true,
       replay: Boolean(replay),
+      traineeId: runningRef.current.traineeId ?? undefined,
       difficulty: {
         level: runningRef.current.level,
         setBy: replay ? undefined : runningRef.current.setBy,
@@ -421,6 +509,7 @@ export default function Simulator({ replay = null }) {
         <div className="px-5 pt-4">
           <h1 className="text-sm font-semibold">Counter-drone exercise</h1>
           <dl className="mt-2 border-t border-panel-rule">
+            {me && !replay && <Readout label="Trainee" value={fullName(me)} />}
             <Readout label="Elapsed" value={formatClock(elapsed)} />
             <Readout label="Conditions" value={shown ? (shown.lighting === 'night' ? 'Night' : 'Day') : 'Pending'} />
             <Readout
@@ -452,7 +541,10 @@ export default function Simulator({ replay = null }) {
               <StartButton assignment={assignment} label="Begin replay" onBegin={begin} onRetry={loadAssignment} />
             </>
           )}
-          {phase === 'idle' && !replay && (
+          {phase === 'idle' && !replay && !me && (
+            <TraineePicker trainees={trainees} onPick={pickTrainee} onRetry={loadTrainees} />
+          )}
+          {phase === 'idle' && !replay && me && (
             <>
               <p className="text-sm">
                 You are observing the airspace over a defended compound. Contacts arrive singly
@@ -514,9 +606,16 @@ export default function Simulator({ replay = null }) {
                 Back to the session record
               </Link>
             ) : (
-              <Link href="/" className="underline underline-offset-4">
-                Leave the simulator
-              </Link>
+              <span className="flex flex-wrap gap-x-5 gap-y-1">
+                {me && (
+                  <button className="underline underline-offset-4" onClick={() => pickTrainee(null)}>
+                    Change trainee
+                  </button>
+                )}
+                <Link href="/" className="underline underline-offset-4">
+                  Leave the simulator
+                </Link>
+              </span>
             )}
           </p>
         )}

@@ -1,11 +1,21 @@
+import { Fragment } from 'react';
 import Link from 'next/link';
+import TraineeHome from '@/components/dashboard/TraineeHome';
 import { listTrainees, listUnits } from '@/lib/dashboard';
 import { nextAssignment } from '@/lib/assignment';
 import AssignmentControls from '@/components/dashboard/AssignmentControls';
 import { NextSession, SystemRecommends } from '@/components/dashboard/Recommendation';
 import Count from '@/components/Count';
 import { SKILL_LABELS } from '@/lib/units';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, fullName } from '@/lib/format';
+import { detectionLimits } from '@/lib/constants';
+
+// "3 s to 13 s rather than 2 s to 10 s", from the scoring constants.
+const limits = (lighting) => {
+  const { fullMs, zeroMs } = detectionLimits(lighting);
+  return `${fullMs / 1000} s to ${zeroMs / 1000} s`;
+};
+const nightLimits = `${limits('night')} rather than ${limits('day')}`;
 
 // Reads live session data — never prerender at build time.
 export const dynamic = 'force-dynamic';
@@ -28,6 +38,7 @@ function SkillCell({ unit, skill }) {
 
 export default async function DashboardPage() {
   const [units, trainees] = await Promise.all([listUnits(), listTrainees()]);
+  const unitNames = [...new Set(trainees.map((t) => t.unit))];
   // What each trainee's next session will be, and how that was arrived at.
   const assignments = await Promise.all(
     trainees.map((t) => nextAssignment({ _id: t.id, baseLevel: t.baseLevel, lightingChoice: t.lightingChoice })),
@@ -35,6 +46,13 @@ export default async function DashboardPage() {
 
   return (
     <>
+      {/* Trainee view: only a way to your own record */}
+      <div data-trainee-only>
+        <TraineeHome trainees={trainees.map(({ id, name, rank, unit }) => ({ id, name, rank, unit }))} />
+      </div>
+
+      {/* Instructor view: every unit and trainee */}
+      <div data-instructor-only>
       <h1 className="text-2xl font-semibold">Units</h1>
       <p className="mt-1 max-w-prose text-sm text-ink/70">
         Each unit&apos;s combined record across its trainees. The three skills are scored out of
@@ -91,7 +109,7 @@ export default async function DashboardPage() {
 
       <h2 className="mt-14 text-2xl font-semibold">Trainees</h2>
       <p className="mt-1 max-w-prose text-sm text-ink/70">
-        Listed by unit. Average composite score is out of 100 and covers completed sessions only.
+Grouped by unit. Average composite score is out of 100 and covers completed sessions only.
       </p>
 
       <div className="mt-6 overflow-x-auto">
@@ -99,30 +117,37 @@ export default async function DashboardPage() {
           <thead>
             <tr>
               <th className={TH}>Trainee</th>
-              <th className={TH}>Unit</th>
               <th className={`${TH} text-right`}>Sessions</th>
               <th className={`${TH} text-right`}>Average composite</th>
               <th className={`${TH} pr-0`}>Last session</th>
             </tr>
           </thead>
           <tbody>
-            {trainees.map((trainee) => (
-              <tr key={trainee.id}>
-                <td className={TD}>
-                  <Link href={`/dashboard/${trainee.id}`} className="font-medium underline underline-offset-4">
-                    {trainee.name}
-                  </Link>
-                </td>
-                <td className={TD}>{trainee.unit}</td>
-                <td className={`${TD} text-right`}><Count value={trainee.sessionCount} /></td>
-                <td className={`${TD} text-right`}><Count value={trainee.avgComposite} /></td>
-                <td className={`${TD} whitespace-nowrap pr-0`}>{formatDateTime(trainee.lastSessionAt)}</td>
-              </tr>
+            {unitNames.map((unit) => (
+              <Fragment key={unit}>
+                <tr>
+                  <th colSpan={4} scope="rowgroup" className="pb-1 pt-6 text-left text-sm font-semibold">
+                    {unit}
+                  </th>
+                </tr>
+                {trainees.filter((trainee) => trainee.unit === unit).map((trainee) => (
+                  <tr key={trainee.id}>
+                    <td className={TD}>
+                      <Link href={`/dashboard/${trainee.id}`} className="font-medium underline underline-offset-4">
+                        {fullName(trainee)}
+                      </Link>
+                    </td>
+                    <td className={`${TD} text-right`}><Count value={trainee.sessionCount} /></td>
+                    <td className={`${TD} text-right`}><Count value={trainee.avgComposite} /></td>
+                    <td className={`${TD} whitespace-nowrap pr-0`}>{formatDateTime(trainee.lastSessionAt)}</td>
+                  </tr>
+                ))}
+              </Fragment>
             ))}
             {trainees.length === 0 && (
               <tr>
-                <td className={`${TD} pr-0`} colSpan={5}>
-                  No trainees yet. Run a session in the simulator to create the first record.
+                <td className={`${TD} pr-0`} colSpan={4}>
+                  No trainees yet. Run `npm run seed` to add the demo trainees.
                 </td>
               </tr>
             )}
@@ -132,9 +157,10 @@ export default async function DashboardPage() {
 
       <h2 className="mt-14 text-2xl font-semibold">Difficulty and conditions</h2>
       <p className="mt-1 max-w-prose text-sm text-ink/70">
-        Set each trainee&apos;s base level and lighting. The system then recommends a level from
-        their recent scores. The base level is the floor: the next session runs at whichever is
-        higher.
+        Set each trainee&apos;s base level and lighting; the trainee cannot change either. The
+        system then recommends a level from their recent scores. The base level is the floor: the
+        next session runs at whichever is higher. Night is harder to see in, so detection is scored on looser limits there
+        ({nightLimits}), and a night session is not marked down for the condition.
       </p>
 
       <div className="relative mt-6 overflow-x-auto">
@@ -151,12 +177,13 @@ export default async function DashboardPage() {
             {trainees.map((trainee, i) => (
               <tr key={trainee.id}>
                 <th scope="row" className={`${TD} align-top font-medium`}>
-                  {trainee.name}
+                  {fullName(trainee)}
+                  <span className="block text-sm font-normal text-ink/70">{trainee.unit}</span>
                 </th>
                 <td className={`${TD} align-top`}>
                   <AssignmentControls
                     traineeId={trainee.id}
-                    traineeName={trainee.name}
+                    traineeName={fullName(trainee)}
                     baseLevel={assignments[i].baseLevel}
                     lightingChoice={assignments[i].lightingChoice}
                   />
@@ -181,6 +208,7 @@ export default async function DashboardPage() {
             )}
           </tbody>
         </table>
+      </div>
       </div>
     </>
   );
