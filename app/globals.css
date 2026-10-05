@@ -1,0 +1,200 @@
+@import "tailwindcss";
+
+@theme {
+  /* Review sheet: /, /dashboard */
+  --color-paper: #f7f7f4;
+  --color-ink: #15202b;
+  --color-rule: #c9cdd2;
+  --color-fail: #9b2c2c;
+  --color-pass: #2c6e49;
+
+  /* Instrument panel: /simulator. Pass and fail are lifted for the dark ground. */
+  --color-panel: #0d1217;
+  --color-panel-rule: #2b343d;
+  --color-readout: #e4e7ea;
+  --color-pass-lit: #7cc79c;
+  --color-fail-lit: #e88f8f;
+}
+
+@theme inline {
+  --font-sans: var(--font-plex);
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* Figures keep one width so columns and readouts do not shift. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* --focus is overridden on the dark simulator so the ring stays visible. */
+:focus-visible {
+  outline: 2px solid var(--focus, var(--color-ink));
+  outline-offset: 2px;
+}
+
+/* Motion, only for readers who have not asked for less of it: anchor links
+   scroll smoothly, and the landing hero's text comes into focus once, in
+   sequence (--step orders it). Nothing else on the site animates in. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  .resolve {
+    animation: resolve 0.6s ease-out both;
+    animation-delay: calc(var(--step, 0) * 160ms);
+  }
+
+  @keyframes resolve {
+    from {
+      opacity: 0;
+      filter: blur(6px);
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Motion that answers an action. Everything here runs in under 250ms.
+   --------------------------------------------------------------------------- */
+
+/* Pressed: the control visibly goes down, not just a colour change. The
+   inset shadow alone carries it when motion is reduced. */
+.press:active:not(:disabled) {
+  box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.3);
+}
+
+/* Opening sections: the height itself moves, so what opened and what it
+   pushed down are both visible. .reveal is toggled; .reveal-in opens once
+   when it appears. The inner padding keeps focus rings from being clipped. */
+.reveal,
+.reveal-in {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+.reveal:not([data-open='true']) {
+  grid-template-rows: 0fr;
+}
+
+.reveal > *,
+.reveal-in > * {
+  min-height: 0;
+  overflow: hidden;
+  margin: -4px;
+  padding: 4px;
+}
+
+.reveal:not([data-open='true']) > * {
+  padding-block: 0;
+  margin-block: 0;
+}
+
+/* Count-up: the real figure sits underneath; an overlay counts to it. */
+@property --count {
+  syntax: '<integer>';
+  inherits: false;
+  initial-value: 0;
+}
+
+.count-up {
+  position: relative;
+  display: inline-block;
+}
+
+.count-up::after {
+  content: counter(n);
+  counter-reset: n var(--count);
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+/* Page change between the three surfaces: one short crossfade. */
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-old(.page),
+::view-transition-new(.page) {
+  animation-duration: 200ms;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .press {
+    transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+  }
+
+  .press:active:not(:disabled) {
+    transform: translateY(1px) scale(0.985);
+  }
+
+  .reveal {
+    transition: grid-template-rows 220ms ease-out;
+  }
+
+  .reveal-in {
+    animation: reveal-in 220ms ease-out;
+  }
+
+  @keyframes reveal-in {
+    from {
+      grid-template-rows: 0fr;
+      opacity: 0;
+    }
+  }
+
+  .count-up > span {
+    animation: count-hold 240ms steps(1, end);
+  }
+
+  .count-up::after {
+    animation: count-up 240ms ease-out;
+  }
+
+  @keyframes count-hold {
+    from, to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes count-up {
+    from {
+      --count: 0;
+      opacity: 1;
+    }
+    to {
+      --count: var(--to);
+      opacity: 1;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+@media print {
+  .reveal {
+    grid-template-rows: 1fr !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .no-print {
+    display: none;
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+}
