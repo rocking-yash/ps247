@@ -28,6 +28,13 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Demo role switch (components/dashboard/RoleToggle.js sets data-role). It
+   decides what is shown, not what is permitted. Instructor is the default. */
+html[data-role='trainee'] [data-instructor-only],
+html:not([data-role='trainee']) [data-trainee-only] {
+  display: none;
+}
+
 /* --focus is overridden on the dark simulator so the ring stays visible. */
 :focus-visible {
   outline: 2px solid var(--focus, var(--color-ink));

@@ -34,7 +34,7 @@ const SKILLS = [
   {
     name: "Detect",
     measures: "How long the trainee takes to flag a contact after it appears.",
-    scored: `Full marks at ${seconds(SCORING.detectFullMs)} or faster, none at ${seconds(SCORING.detectZeroMs)} or slower. A contact that reaches the asset unflagged is a miss.`,
+    scored: `Full marks at ${seconds(SCORING.detectFullMs)} or faster, none at ${seconds(SCORING.detectZeroMs)} or slower. At night, when the contact is harder to see, the limits are ${seconds(SCORING.nightDetectFullMs)} and ${seconds(SCORING.nightDetectZeroMs)}. A contact that reaches the asset unflagged is a miss.`,
     weight: weights.detection,
   },
   {
@@ -324,6 +324,22 @@ export default async function Home() {
                 </table>
               </div>
             )}
+          </div>
+        </section>
+
+        <section id="architecture" data-rule="bottom" className={SECTION}>
+          <div className={WRAP}>
+            <h2 data-reveal className={H2}>Architecture note: identity without a login</h2>
+            <p data-reveal className={LEAD}>
+              A trainee is picked from a list before a session, and the browser remembers the
+              choice. There are deliberately no passwords, no hashing and no login sessions.
+            </p>
+            <p data-reveal className="mt-3 max-w-prose text-ink/70">
+              In a real deployment a trainee&apos;s identity would come from the unit&apos;s own
+              system. Building a second login here would add something to secure and maintain,
+              and nothing the problem statement asks for. The instructor and trainee views are a
+              switch for the same reason: they decide what is shown, not what is permitted.
+            </p>
           </div>
         </section>
       </main>

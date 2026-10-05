@@ -11,7 +11,14 @@ import { nextAssignment } from '@/lib/assignment';
 import { scenarioMatchesEvents } from '@/lib/scenario';
 import { SKILL_NAMES } from '@/lib/weakness';
 import { VERDICT_LABELS, LEVEL_UP_AT, LEVEL_DOWN_AT } from '@/lib/constants';
-import { formatDateTime } from '@/lib/format';
+import { formatDateTime, fullName } from '@/lib/format';
+import { detectionLimits } from '@/lib/constants';
+
+const limits = (lighting) => {
+  const { fullMs, zeroMs } = detectionLimits(lighting);
+  return `${fullMs / 1000} s to ${zeroMs / 1000} s`;
+};
+const nightLimits = `${limits('night')} rather than ${limits('day')}`;
 
 // Sessions shown before the rest are folded away under a disclosure.
 const RECENT_SESSIONS = 5;
@@ -106,10 +113,10 @@ export default async function TraineePage({ params }) {
 
   return (
     <>
-      <Link href="/dashboard" className="no-print text-sm underline underline-offset-4">
+      <Link href="/dashboard" data-instructor-only className="no-print text-sm underline underline-offset-4">
         All trainees
       </Link>
-      <h1 className="mt-3 text-2xl font-semibold">{trainee.name}</h1>
+      <h1 className="mt-3 text-2xl font-semibold">{fullName(trainee)}</h1>
       <dl className="mt-4 flex flex-wrap gap-x-12 gap-y-4">
         <Fact label="Unit" value={trainee.unit} />
         <Fact label="Sessions" value={<Count value={sessions.length} />} />
@@ -126,12 +133,13 @@ export default async function TraineePage({ params }) {
         <h2 className="text-lg font-semibold">Difficulty and conditions</h2>
         <p className="mt-1 max-w-prose text-sm text-ink/70">
           The base level is the floor. The system recommends a level from recent scores, and the
-          next session runs at whichever is higher.
+          next session runs at whichever is higher. The instructor also sets the lighting. Night
+          is harder to see in, so detection is scored on looser limits there ({nightLimits}).
         </p>
-        <div className="mt-3">
+        <div data-instructor-only className="mt-3">
           <AssignmentControls
             traineeId={String(trainee._id)}
-            traineeName={trainee.name}
+            traineeName={fullName(trainee)}
             baseLevel={next.baseLevel}
             lightingChoice={next.lightingChoice}
           />
