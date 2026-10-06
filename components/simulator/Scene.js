@@ -5,7 +5,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Billboard, PerspectiveCamera } from '@react-three/drei';
 import Environment, { CONDITIONS, useBlobTexture } from './Environment';
 import { contactState } from '@/lib/scenario';
-import { EYE_HEIGHT } from '@/lib/terrain';
+import { EYE_HEIGHT, PLATFORM } from '@/lib/terrain';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 import { usePhone } from '@/lib/usePhone';
 
@@ -150,7 +150,8 @@ function prefersReducedMotion() {
 const HIT_RADIUS = 7;         // metres: the hit sphere as built
 const MIN_TAP_RADIUS_PX = 26;
 
-function Contact({ contact, status, active, silhouette, shadowOpacity, thumb, getElapsed, onDetect, onEnd }) {
+// platform: in urban terrain, the only ground there is to cast a shadow on.
+function Contact({ contact, status, active, silhouette, shadowOpacity, thumb, platform, getElapsed, onDetect, onEnd }) {
   const group = useRef();
   const hit = useRef();
   const body = useRef();
@@ -166,10 +167,14 @@ function Contact({ contact, status, active, silhouette, shadowOpacity, thumb, ge
   useFrame(({ camera, size }) => {
     const state = contactState(contact, getElapsed());
     group.current.visible = state !== null && live;
-    shadow.current.visible = group.current.visible;
-    if (!state) return;
+    if (!state) {
+      shadow.current.visible = false;
+      return;
+    }
 
     const [x, y, z] = state.position;
+    shadow.current.visible = group.current.visible
+      && (!platform || (Math.abs(x) < platform.halfWidth && z < platform.near && z > platform.far));
     group.current.position.set(x, y, z);
     // Straight below on the ground: where it is over, and so how far out.
     shadow.current.position.set(x, 0.06, z);
@@ -266,6 +271,7 @@ export default function Scene({ scenario, lighting = 'day', terrain = 'rural', s
           silhouette={light.silhouette}
           shadowOpacity={light.shadow}
           thumb={phone}
+          platform={terrain === 'urban' ? PLATFORM : null}
           getElapsed={getElapsed}
           onDetect={() => onDetect(i)}
           onEnd={() => onEnd(i)}

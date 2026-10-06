@@ -5,9 +5,9 @@
 // live view, so both show the same place.
 //
 // There are two terrains under the same sky, haze and light: the open
-// airfield, and an urban district whose blocks hide parts of the sky (the
-// layout is URBAN_BLOCKS in lib/terrain.js). Only the ground and what stands
-// on it differ.
+// airfield, and an urban one, where the observer stands on a raised platform
+// with a parapet and a city skyline stands beyond it (the layout is in
+// lib/terrain.js). Only the ground and what stands on it differ.
 //
 // Everything is procedural — no image files. It is also built to be cheap,
 // because the landing page runs it on every load:
@@ -18,11 +18,12 @@
 
 import { useLayoutEffect, useMemo, useRef } from 'react';
 import {
-  BackSide, CanvasTexture, Color, DoubleSide, Matrix4, Quaternion, RepeatWrapping, SRGBColorSpace, Vector3,
+  BackSide, CanvasTexture, Color, DoubleSide, InstancedBufferAttribute, Matrix4, Quaternion, RepeatWrapping,
+  SRGBColorSpace, UniformsLib, Vector3,
 } from 'three';
 import { useFrame } from '@react-three/fiber';
 import { ASSET_POSITION } from '@/lib/scenario';
-import { URBAN_BLOCKS } from '@/lib/terrain';
+import { PLATFORM, STREET_LEVEL, URBAN_BLOCKS } from '@/lib/terrain';
 
 // Low sun, ahead and to the left. Everything is lit from here.
 const SUN_DIRECTION = new Vector3(-0.72, 0.24, -0.65).normalize();
@@ -51,6 +52,7 @@ export const CONDITIONS = {
     silhouette: { color: '#1c1f24', rotorColor: '#2b3038' },
     shadow: 0.34,
     tuft: '#ffffff',
+    skyline: 1,
   },
   night: {
     zenith: '#070c12',
@@ -64,6 +66,10 @@ export const CONDITIONS = {
     silhouette: { color: '#1c1f24', rotorColor: '#2b3038', emissive: '#0a1016' },
     shadow: 0.3,
     tuft: '#1b2227',
+    // Urban skyline only: how much the sky's light on it is lifted. By night
+    // it is raised until the buildings sit just lighter than a contact, so
+    // one crossing in front of them is hard to hold but can still be followed.
+    skyline: 2.6,
   },
 };
 
@@ -87,6 +93,7 @@ function noise(x, y) {
 }
 
 const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+const mixHex = (a, b, t) => `rgb(${mix(a, b, t).map(Math.round).join(',')})`;
 const cache = {};
 const cached = (key, make) => (cache[key] ??= make());
 
@@ -97,11 +104,8 @@ const GROUND = { size: 640, centre: [0, -200], texels: 512 };
 const APRON = { halfWidth: 80, near: 30, far: -105 };  // x extent, z range
 const GRASS_AWAY = [119, 117, 76];   // what the texture fades to at its edges; the far ground's colour
 const GRASS_COLOUR = '#77754c';
-const PAVING_AWAY = [124, 124, 120];  // the same for the urban ground
-const PAVING_COLOUR = '#7c7c78';
 
-// urban: paving and asphalt in place of grass; the apron is the same concrete.
-function groundTexture(urban = false) {
+function groundTexture() {
   const { size, centre, texels } = GROUND;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = texels;
@@ -119,12 +123,6 @@ function groundTexture(urban = false) {
         // Concrete: pale grey and blotchy. The slab joints are separate geometry.
         const blotch = noise(x * 0.09, z * 0.09) * 0.6 + noise(x * 0.5, z * 0.5) * 0.4;
         rgb = [172, 170, 160].map((v) => v * (0.88 + blotch * 0.22));
-      } else if (urban) {
-        // Asphalt and paving: mid grey, patched, darker along the avenue.
-        const patch = noise(x * 0.03 + 3, z * 0.03 + 7);
-        const fine = noise(x * 0.6, z * 0.6);
-        const road = Math.abs(x) < 14 ? 0.82 : 1;
-        rgb = mix([112, 112, 110], [140, 139, 133], patch * 0.7 + fine * 0.3).map((v) => v * road * (0.94 + fine * 0.12));
       } else {
         // Dry grass: straw to dull green in broad patches, speckled finer.
         const patch = noise(x * 0.022 + 9, z * 0.022 + 4);
@@ -135,7 +133,7 @@ function groundTexture(urban = false) {
       // Melt into the plain far ground towards the edges, so there is no seam.
       const edge = Math.max(Math.abs(px / texels - 0.5), Math.abs(py / texels - 0.5)) * 2;
       const away = Math.min(1, Math.max(0, (edge - 0.8) / 0.2));
-      rgb = mix(rgb, urban ? PAVING_AWAY : GRASS_AWAY, away);
+      rgb = mix(rgb, GRASS_AWAY, away);
 
       const i = (py * texels + px) * 4;
       image.data[i] = rgb[0];
@@ -429,84 +427,326 @@ function ApronJoints() {
   );
 }
 
-// The urban district: every block is a plain box, all in one instanced mesh,
-// with one more instanced mesh for their soft shadows. The boxes take clicks
-// and stop them, so a contact behind a building cannot be flagged through it.
-const BLOCK_TONES = [[166, 160, 150], [128, 130, 134]];
+// ---------------------------------------------------------------------------
+// Urban terrain: a raised platform with a parapet, and a skyline beyond it.
+// ---------------------------------------------------------------------------
 
-function UrbanBlocks({ shadowOpacity }) {
-  const boxes = useRef();
-  const shadows = useRef();
-  const blob = useBlobTexture();
+// The platform's surface: the same pale, blotchy concrete as the apron, in
+// one texture across the whole of it.
+function platformTexture() {
+  const texels = 512;
+  const width = PLATFORM.halfWidth * 2, depth = PLATFORM.near - PLATFORM.far;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = texels;
+  const ctx = canvas.getContext('2d');
+  const image = ctx.createImageData(texels, texels);
+  for (let py = 0; py < texels; py++) {
+    for (let px = 0; px < texels; px++) {
+      const x = (px / texels) * width, z = (py / texels) * depth;
+      const blotch = noise(x * 0.09, z * 0.09) * 0.6 + noise(x * 0.5, z * 0.5) * 0.4;
+      const i = (py * texels + px) * 4;
+      image.data[i] = 172 * (0.88 + blotch * 0.22);
+      image.data[i + 1] = 170 * (0.88 + blotch * 0.22);
+      image.data[i + 2] = 160 * (0.88 + blotch * 0.22);
+      image.data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
+}
 
-  useLayoutEffect(() => {
-    const matrix = new Matrix4();
-    const upright = new Quaternion();
-    const flat = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
-    const colour = new Color();
-    URBAN_BLOCKS.forEach((block, i) => {
-      matrix.compose(new Vector3(block.x, block.h / 2, block.z), upright, new Vector3(block.w, block.h, block.d));
-      boxes.current.setMatrixAt(i, matrix);
-      const tone = mix(BLOCK_TONES[0], BLOCK_TONES[1], block.shade).map((v) => v / 255);
-      boxes.current.setColorAt(i, colour.setRGB(tone[0], tone[1], tone[2], SRGBColorSpace));
+// A shadow that lies along the foot of a wall: dark against it, gone a few
+// metres out.
+function wallShadowTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 4;
+  canvas.height = 32;
+  const ctx = canvas.getContext('2d');
+  const fade = ctx.createLinearGradient(0, 0, 0, 32);
+  fade.addColorStop(0, 'rgba(0,0,0,1)');
+  fade.addColorStop(0.45, 'rgba(0,0,0,0.5)');
+  fade.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, 0, 4, 32);
+  return new CanvasTexture(canvas);
+}
 
-      const reach = Math.min(block.h, 40) * 1.4;
-      matrix.compose(
-        new Vector3(block.x + SHADOW_DRIFT[0] * reach * 0.6, 0.05 + i * 0.0005, block.z + SHADOW_DRIFT[1] * reach * 0.6),
-        flat,
-        new Vector3(block.w + reach * 1.6, block.d + reach * 1.6, 1),
-      );
-      shadows.current.setMatrixAt(i, matrix);
-    });
-    boxes.current.instanceMatrix.needsUpdate = true;
-    boxes.current.instanceColor.needsUpdate = true;
-    boxes.current.computeBoundingSphere();
-    shadows.current.instanceMatrix.needsUpdate = true;
-  }, []);
+const CONCRETE = '#b9b6ac';
 
+// The low wall round the platform's edge, and the soft shadow the low sun
+// lays from the far wall back across the platform.
+function Parapet({ shadowOpacity }) {
+  const shade = useMemo(() => cached('wall-shadow', wallShadowTexture), []);
+  const { halfWidth, near, far, wall } = PLATFORM;
+  const depth = near - far, middle = (near + far) / 2;
+  const reach = (wall.height / SUN_DIRECTION.y) * -SUN_DIRECTION.z;  // how far the shadow runs towards the observer
   return (
     <>
-      <instancedMesh ref={shadows} args={[undefined, undefined, URBAN_BLOCKS.length]} frustumCulled={false}>
-        <planeGeometry />
-        <meshBasicMaterial map={blob} color="#0c1420" transparent opacity={shadowOpacity} depthWrite={false} />
-      </instancedMesh>
-      <instancedMesh
-        ref={boxes}
-        args={[undefined, undefined, URBAN_BLOCKS.length]}
-        frustumCulled={false}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <boxGeometry />
-        <meshStandardMaterial roughness={0.95} />
-      </instancedMesh>
+      <mesh position={[0, wall.height / 2, far]}>
+        <boxGeometry args={[halfWidth * 2 + wall.thickness, wall.height, wall.thickness]} />
+        <meshStandardMaterial color={CONCRETE} roughness={0.95} />
+      </mesh>
+      {[-1, 1].map((side) => (
+        <mesh key={side} position={[side * halfWidth, wall.height / 2, middle]}>
+          <boxGeometry args={[wall.thickness, wall.height, depth]} />
+          <meshStandardMaterial color={CONCRETE} roughness={0.95} />
+        </mesh>
+      ))}
+      <mesh rotation={FLAT} position={[0, 0.04, far + wall.thickness / 2 + reach / 2]}>
+        <planeGeometry args={[halfWidth * 2, reach]} />
+        <meshBasicMaterial map={shade} color="#0c1420" transparent opacity={shadowOpacity} depthWrite={false} />
+      </mesh>
     </>
   );
 }
 
-function Ground({ shadowOpacity, tuftTint, urban, light }) {
-  const map = useMemo(() => cached(urban ? 'ground-urban' : 'ground', () => groundTexture(urban)), [urban]);
-  const [ax, , az] = ASSET_POSITION;
+// Street trees in front of the nearest buildings: one flat band of rounded
+// crowns, drawn once into a texture that repeats along it.
+const CITY_TREES = { z: -306, width: 960, top: 11 };
 
+function cityTreeTexture() {
+  const width = 512, height = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  // a solid hedge of foliage low down, then crowns of different sizes above it
+  ctx.fillStyle = '#39493a';
+  ctx.fillRect(0, height * 0.62, width, height);
+  for (let i = 0; i < 46; i++) {
+    const radius = 9 + hash(i, 21) * 12;
+    const x = hash(i, 22) * width;
+    const y = height * 0.66 - hash(i, 23) * (height * 0.66 - radius - 2);
+    ctx.fillStyle = mixHex([57, 73, 58], [74, 92, 66], hash(i, 24));
+    // drawn three times so a crown that crosses an edge wraps round to the other
+    for (const shift of [-width, 0, width]) {
+      ctx.beginPath();
+      ctx.arc(x + shift, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.wrapS = RepeatWrapping;
+  texture.repeat.set(7, 1);
+  return texture;
+}
+
+function CityTrees({ tint }) {
+  const map = useMemo(() => cached('city-trees', cityTreeTexture), []);
+  const height = CITY_TREES.top - STREET_LEVEL;
+  return (
+    <mesh position={[0, STREET_LEVEL + height / 2, CITY_TREES.z]}>
+      <planeGeometry args={[CITY_TREES.width, height]} />
+      <meshBasicMaterial map={map} color={tint} transparent alphaTest={0.5} />
+    </mesh>
+  );
+}
+
+// The skyline: every building is a plain box, all in one instanced mesh and
+// one small shader. The shader does three things a flat-coloured box cannot:
+//   - light: the low sun warms the faces turned to it, and the rest sit in
+//     cool light from the sky, which is what gives a box its form
+//   - windows: a grid of glass drawn on the walls from the position on the
+//     wall, so every building has floors of the same height. It blurs into
+//     an even tone where the windows are too small to draw, so it never
+//     shimmers.
+//   - the scene's own haze, tone mapping and colour space
+// The boxes take clicks and stop them, so a contact behind a building cannot
+// be flagged through it.
+const BUILDING_TONES = [[201, 194, 181], [156, 164, 173]];  // warm concrete to cool grey
+const GLASS = '#7f93a8';
+const SUN_BOOST = 1.7;  // the sun is stronger on the skyline than physically, for the sake of the contrast
+
+const SKYLINE_VERTEX = `
+  attribute float aGlass;
+  varying vec3 vWorld;
+  varying vec3 vFacing;
+  varying vec3 vTone;
+  varying float vGlass;
+  #include <fog_pars_vertex>
+
+  void main() {
+    vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);
+    vWorld = world.xyz;
+    vFacing = normal;   // the boxes are never turned, so this is the world normal
+    vTone = instanceColor;
+    vGlass = aGlass;
+    vec4 mvPosition = viewMatrix * world;
+    gl_Position = projectionMatrix * mvPosition;
+    #include <fog_vertex>
+  }
+`;
+
+const SKYLINE_FRAGMENT = `
+  uniform vec3 sunDirection;
+  uniform vec3 sunLight;
+  uniform vec3 skyLight;
+  uniform vec3 groundLight;
+  uniform vec3 glass;
+  uniform float streetLevel;
+  varying vec3 vWorld;
+  varying vec3 vFacing;
+  varying vec3 vTone;
+  varying float vGlass;
+  #include <fog_pars_fragment>
+
+  // 1 inside the band [from, to] of a repeating 0..1 coordinate, softened by one pixel
+  float band(float at, float from, float to, float pixel) {
+    return smoothstep(from - pixel, from + pixel, at) * (1.0 - smoothstep(to - pixel, to + pixel, at));
+  }
+
+  void main() {
+    vec3 n = normalize(vFacing);
+    vec3 albedo = vTone;
+
+    if (abs(n.y) < 0.5) {
+      // Walls: bays 4.4 m wide, floors 3.7 m high.
+      float along = abs(n.x) > 0.5 ? vWorld.z : vWorld.x;
+      vec2 cell = vec2(along / 4.4, (vWorld.y - streetLevel) / 3.7);
+      vec2 pixel = fwidth(cell);
+      vec2 f = fract(cell);
+      float window = band(f.x, 0.16, 0.84, pixel.x) * band(f.y, 0.24, 0.8, pixel.y);
+      // too small to draw: settle to the share of the wall that is window
+      float drawn = clamp(1.0 - max(pixel.x, pixel.y) * 1.6, 0.0, 1.0);
+      window = mix(0.38, window, drawn);
+      albedo = mix(albedo, glass, window * vGlass);
+    } else {
+      albedo *= 0.82;  // roofs
+    }
+
+    float sun = max(dot(n, sunDirection), 0.0);
+    vec3 light = sunLight * sun + mix(groundLight, skyLight, 0.72 + 0.28 * n.y);
+    gl_FragColor = vec4(albedo * light, 1.0);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    #include <fog_fragment>
+  }
+`;
+
+function Skyline({ look }) {
+  const mesh = useRef();
+  const uniforms = useMemo(() => {
+    const [sky, ground, strength] = look.hemisphere;
+    return {
+      ...UniformsLib.fog,
+      sunDirection: { value: SUN_DIRECTION },
+      // a lit surface returns its colour times the light over pi
+      sunLight: { value: new Color(look.sun.color).multiplyScalar((look.sun.intensity * SUN_BOOST) / Math.PI) },
+      skyLight: { value: new Color(sky).multiplyScalar((strength * look.skyline) / Math.PI) },
+      groundLight: { value: new Color(ground).multiplyScalar((strength * look.skyline) / Math.PI) },
+      glass: { value: new Color(GLASS) },
+      streetLevel: { value: STREET_LEVEL },
+    };
+  }, [look]);
+
+  useLayoutEffect(() => {
+    const matrix = new Matrix4();
+    const upright = new Quaternion();
+    const colour = new Color();
+    const glass = new Float32Array(URBAN_BLOCKS.length);
+    URBAN_BLOCKS.forEach((block, i) => {
+      matrix.compose(
+        new Vector3(block.x, STREET_LEVEL + block.h / 2, block.z),
+        upright,
+        new Vector3(block.w, block.h, block.d),
+      );
+      mesh.current.setMatrixAt(i, matrix);
+      const tone = mix(BUILDING_TONES[0], BUILDING_TONES[1], block.shade).map((v) => v / 255);
+      mesh.current.setColorAt(i, colour.setRGB(tone[0], tone[1], tone[2], SRGBColorSpace));
+      glass[i] = block.glass;
+    });
+    mesh.current.geometry.setAttribute('aGlass', new InstancedBufferAttribute(glass, 1));
+    mesh.current.instanceMatrix.needsUpdate = true;
+    mesh.current.instanceColor.needsUpdate = true;
+    mesh.current.computeBoundingSphere();
+  }, []);
+
+  return (
+    <instancedMesh
+      ref={mesh}
+      args={[undefined, undefined, URBAN_BLOCKS.length]}
+      frustumCulled={false}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <boxGeometry />
+      <shaderMaterial
+        key={look.zenith}
+        fog
+        uniforms={uniforms}
+        vertexShader={SKYLINE_VERTEX}
+        fragmentShader={SKYLINE_FRAGMENT}
+      />
+    </instancedMesh>
+  );
+}
+
+// The open airfield's ground: grass out to the horizon, the detailed stretch
+// the observer looks at, range rings and grass tufts.
+function OpenGround({ tuftTint, light }) {
+  const map = useMemo(() => cached('ground', groundTexture), []);
   return (
     <>
       {/* Plain far ground, and the detailed stretch laid just over it */}
       <mesh rotation={FLAT} position={[0, -0.05, 0]}>
         <planeGeometry args={[3000, 3000]} />
-        <meshStandardMaterial color={urban ? PAVING_COLOUR : GRASS_COLOUR} roughness={1} />
+        <meshStandardMaterial color={GRASS_COLOUR} roughness={1} />
       </mesh>
       <mesh rotation={FLAT} position={[GROUND.centre[0], 0, GROUND.centre[1]]}>
         <planeGeometry args={[GROUND.size, GROUND.size]} />
-        <meshStandardMaterial key={urban ? 'urban' : 'rural'} map={map} roughness={1} />
+        <meshStandardMaterial map={map} roughness={1} />
       </mesh>
 
       {RANGE_RINGS.map(([range, width]) => (
         <mesh key={range} rotation={FLAT} position={[0, 0.03, 0]}>
           <ringGeometry args={[range - width / 2, range + width / 2, 160]} />
-          <meshStandardMaterial color={urban ? '#55565a' : '#5d5f45'} transparent opacity={0.55} roughness={1} />
+          <meshStandardMaterial color="#5d5f45" transparent opacity={0.55} roughness={1} />
         </mesh>
       ))}
 
-      {urban ? <UrbanBlocks shadowOpacity={shadowOpacity} /> : <GrassTufts tint={tuftTint} light={light} />}
+      <GrassTufts tint={tuftTint} light={light} />
+    </>
+  );
+}
+
+// The urban ground: the platform, its parapet, and beyond and below it the
+// city at street level. Only the first range ring fits on the platform.
+function UrbanGround({ look }) {
+  const map = useMemo(() => cached('platform', platformTexture), []);
+  const { halfWidth, near, far } = PLATFORM;
+  const [range, width] = RANGE_RINGS[0];
+  return (
+    <>
+      <mesh rotation={FLAT} position={[0, STREET_LEVEL, 0]}>
+        <planeGeometry args={[3000, 3000]} />
+        <meshStandardMaterial color="#5c5f63" roughness={1} />
+      </mesh>
+      <mesh rotation={FLAT} position={[0, 0, (near + far) / 2]}>
+        <planeGeometry args={[halfWidth * 2, near - far]} />
+        <meshStandardMaterial map={map} roughness={1} />
+      </mesh>
+      <mesh rotation={FLAT} position={[0, 0.03, 0]}>
+        <ringGeometry args={[range - width / 2, range + width / 2, 160]} />
+        <meshStandardMaterial color="#6b6a64" transparent opacity={0.55} roughness={1} />
+      </mesh>
+
+      <Parapet shadowOpacity={look.shadow} />
+      <CityTrees tint={look.tuft} />
+      <Skyline look={look} />
+    </>
+  );
+}
+
+function Ground({ look, urban, light }) {
+  const [ax, , az] = ASSET_POSITION;
+  const shadowOpacity = look.shadow;
+
+  return (
+    <>
+      {urban ? <UrbanGround look={look} /> : <OpenGround tuftTint={look.tuft} light={light} />}
       <ApronJoints />
 
       <group position={[ax, 0, az]}>
@@ -553,7 +793,7 @@ export default function Environment({ lighting = 'day', terrain = 'rural', still
       <fog attach="fog" args={look.fog} />
       <hemisphereLight args={look.hemisphere} />
       <directionalLight position={SUN_DIRECTION.clone().multiplyScalar(300)} {...look.sun} />
-      <Ground shadowOpacity={look.shadow} tuftTint={look.tuft} urban={urban} light={light} />
+      <Ground look={look} urban={urban} light={light} />
       {!urban && <Treeline />}
     </>
   );
