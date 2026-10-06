@@ -7,6 +7,7 @@ import Environment, { CONDITIONS, useBlobTexture } from './Environment';
 import { contactState } from '@/lib/scenario';
 import { EYE_HEIGHT } from '@/lib/terrain';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+import { usePhone } from '@/lib/usePhone';
 
 // Fixed observation post, 12 m up and pitched ~11° above level, so the whole
 // approach from horizon to the asset stays in frame and enough ground is
@@ -144,8 +145,14 @@ function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function Contact({ contact, status, active, silhouette, shadowOpacity, getElapsed, onDetect, onEnd }) {
+// On a phone a contact is flagged with a thumb, so its hit area is never
+// smaller on screen than this radius, however far away the contact is.
+const HIT_RADIUS = 7;         // metres: the hit sphere as built
+const MIN_TAP_RADIUS_PX = 26;
+
+function Contact({ contact, status, active, silhouette, shadowOpacity, thumb, getElapsed, onDetect, onEnd }) {
   const group = useRef();
+  const hit = useRef();
   const body = useRef();
   const shadow = useRef();
   const ring = useRef();
@@ -156,7 +163,7 @@ function Contact({ contact, status, active, silhouette, shadowOpacity, getElapse
   const Model = MODELS[contact.droneType];
   const live = status === 'pending' || status === 'flagged';
 
-  useFrame(({ camera }) => {
+  useFrame(({ camera, size }) => {
     const state = contactState(contact, getElapsed());
     group.current.visible = state !== null && live;
     shadow.current.visible = group.current.visible;
@@ -166,6 +173,12 @@ function Contact({ contact, status, active, silhouette, shadowOpacity, getElapse
     group.current.position.set(x, y, z);
     // Straight below on the ground: where it is over, and so how far out.
     shadow.current.position.set(x, 0.06, z);
+
+    if (thumb) {
+      const range = camera.position.distanceTo(group.current.position);
+      const metresPerPixel = (2 * range * Math.tan((camera.fov * Math.PI) / 360)) / size.height;
+      hit.current.scale.setScalar(Math.max(1, (MIN_TAP_RADIUS_PX * metresPerPixel) / HIT_RADIUS));
+    }
 
     // Confirmation at the contact itself: the ring appears at once at full
     // strength and closes onto it. With reduced motion it simply appears.
@@ -217,8 +230,8 @@ function Contact({ contact, status, active, silhouette, shadowOpacity, getElapse
           <Model {...silhouette} />
         </group>
         {/* Generous invisible click target so flagging tests eyes, not aim */}
-        <mesh onClick={handleClick}>
-          <sphereGeometry args={[7, 12, 12]} />
+        <mesh ref={hit} onClick={handleClick}>
+          <sphereGeometry args={[HIT_RADIUS, 12, 12]} />
           <meshBasicMaterial visible={false} />
         </mesh>
         {/* Flag ring: solid on the contact being decided, faint on those waiting */}
@@ -239,10 +252,11 @@ function Contact({ contact, status, active, silhouette, shadowOpacity, getElapse
 export default function Scene({ scenario, lighting = 'day', terrain = 'rural', statuses, activeIndex, getElapsed, onDetect, onEnd }) {
   const light = CONDITIONS[lighting] ?? CONDITIONS.day;
   const still = useReducedMotion();
+  const phone = usePhone();
   return (
     <Canvas dpr={[1, 1.5]}>
       <ObserverCamera />
-      <Environment lighting={lighting} terrain={terrain} still={still} />
+      <Environment lighting={lighting} terrain={terrain} still={still} light={phone} />
       {scenario?.drones.map((contact, i) => (
         <Contact
           key={`${scenario.seed}-${i}`}
@@ -251,6 +265,7 @@ export default function Scene({ scenario, lighting = 'day', terrain = 'rural', s
           active={i === activeIndex}
           silhouette={light.silhouette}
           shadowOpacity={light.shadow}
+          thumb={phone}
           getElapsed={getElapsed}
           onDetect={() => onDetect(i)}
           onEnd={() => onEnd(i)}

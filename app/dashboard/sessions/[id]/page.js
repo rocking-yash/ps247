@@ -33,11 +33,11 @@ function Fact({ label, children }) {
 function Step({ label, working, value, total = false }) {
   return (
     <tr className={total ? 'font-semibold' : ''}>
-      <th scope="row" className={`${TD} whitespace-nowrap ${total ? '' : 'font-normal'}`}>
+      <th data-card-title scope="row" className={`${TD} whitespace-nowrap ${total ? '' : 'font-normal'}`}>
         {label}
       </th>
-      <td className={`${TD} text-body`}>{working}</td>
-      <td className={`${TD} whitespace-nowrap pr-0 text-right`}>{value}</td>
+      <td data-label="Working" data-block className={`${TD} text-body`}>{working}</td>
+      <td data-label="Points" className={`${TD} whitespace-nowrap pr-0 text-right`}>{value}</td>
     </tr>
   );
 }
@@ -106,7 +106,7 @@ export default async function SessionPage({ params }) {
           {urban && ' In urban terrain a contact can appear behind a building, so latency is counted from the moment it first came into sight.'}
         </p>
         <div className={TABLE_CARD}>
-          <table className="w-full min-w-[60rem] text-left">
+          <table className="cards w-full min-w-[60rem] text-left">
             <thead>
               <tr>
                 <th className={`${TH} pl-4`}>Verdict</th>
@@ -126,17 +126,17 @@ export default async function SessionPage({ params }) {
                 const detected = event.detectedAt !== null && event.detectedAt !== undefined;
                 return (
                   <tr key={i}>
-                    <td className={`${TD} border-l-4 pl-3 ${pass ? 'border-l-pass' : 'border-l-fail'}`}>
+                    <td data-card-title className={`${TD} border-l-4 pl-3 ${pass ? 'border-l-pass' : 'border-l-fail'}`}>
                       <span className={`whitespace-nowrap text-base font-semibold ${pass ? 'text-pass' : 'text-fail'}`}>
                         {VERDICT_LABELS[event.verdict]}
                       </span>
                     </td>
-                    <td className={TD}>{DRONE_LABELS[event.droneType]}</td>
-                    <td className={`${TD} whitespace-nowrap text-right`}>{clock(event.spawnTime)}</td>
+                    <td data-label="Contact was" className={TD}>{DRONE_LABELS[event.droneType]}</td>
+                    <td data-label="Appeared" className={`${TD} whitespace-nowrap text-right`}>{clock(event.spawnTime)}</td>
                     {urban && (
-                      <td className={`${TD} whitespace-nowrap text-right`}>{clock(event.visibleFrom ?? event.spawnTime)}</td>
+                      <td data-label="In sight from" className={`${TD} whitespace-nowrap text-right`}>{clock(event.visibleFrom ?? event.spawnTime)}</td>
                     )}
-                    <td className={`${TD} whitespace-nowrap text-right`}>
+                    <td data-label="Detected" className={`${TD} whitespace-nowrap text-right`}>
                       {detected ? clock(event.detectedAt) : (
                         <>
                           <Mark ok={false} />
@@ -144,14 +144,14 @@ export default async function SessionPage({ params }) {
                         </>
                       )}
                     </td>
-                    <td className={`${TD} whitespace-nowrap text-right`}>{detected ? formatSeconds(event.detectionLatency) : '—'}</td>
-                    <td className={TD}>
+                    <td data-label="Latency" className={`${TD} whitespace-nowrap text-right`}>{detected ? formatSeconds(event.detectionLatency) : '—'}</td>
+                    <td data-label="Classified as" className={TD}>
                       <Graded label={DRONE_LABELS[event.classifiedAs]} ok={event.classifiedCorrectly} />
                     </td>
-                    <td className={`${TD} whitespace-nowrap`}>
+                    <td data-label="Response chosen" className={`${TD} whitespace-nowrap`}>
                       <Graded label={RESPONSE_LABELS[event.responseChosen]} ok={event.respondedCorrectly} />
                     </td>
-                    <td className={`${TD} whitespace-nowrap pr-0`}>{RESPONSE_LABELS[CORRECT_RESPONSE[event.droneType]]}</td>
+                    <td data-label="Correct response" className={`${TD} whitespace-nowrap pr-0`}>{RESPONSE_LABELS[CORRECT_RESPONSE[event.droneType]]}</td>
                   </tr>
                 );
               })}
@@ -174,7 +174,7 @@ export default async function SessionPage({ params }) {
           is rounded and kept between 0 and 100.
         </p>
         <div className={TABLE_CARD}>
-          <table className="w-full min-w-[44rem] text-left">
+          <table className="cards w-full min-w-[44rem] text-left">
             <thead>
               <tr>
                 <th className={TH}>Step</th>

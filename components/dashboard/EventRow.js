@@ -57,13 +57,13 @@ export default function EventRow({ event }) {
 
   return (
     <tr>
-      <td className={`${TD} border-l-4 pl-3 ${pass ? 'border-l-pass' : 'border-l-fail'}`}>
+      <td data-card-title className={`${TD} border-l-4 pl-3 ${pass ? 'border-l-pass' : 'border-l-fail'}`}>
         <span className={`whitespace-nowrap text-base font-semibold ${pass ? 'text-pass' : 'text-fail'}`}>
           {VERDICT_LABELS[event.verdict]}
         </span>
       </td>
-      <td className={`${TD} whitespace-nowrap`}>{DRONE_LABELS[event.droneType]}</td>
-      <td className={`${TD} whitespace-nowrap`}>
+      <td data-label="Contact" className={`${TD} whitespace-nowrap`}>{DRONE_LABELS[event.droneType]}</td>
+      <td data-label="Detected after" className={`${TD} whitespace-nowrap`}>
         {missed ? (
           <>
             <Mark ok={false} />
@@ -73,10 +73,10 @@ export default function EventRow({ event }) {
           formatSeconds(event.detectionLatency)
         )}
       </td>
-      <td className={TD}>
+      <td data-label="Classified as" className={TD}>
         <Graded label={DRONE_LABELS[event.classifiedAs]} ok={event.classifiedCorrectly} />
       </td>
-      <td className={`${TD} whitespace-nowrap pr-0`}>
+      <td data-label="Response" className={`${TD} whitespace-nowrap pr-0`}>
         <Graded label={RESPONSE_LABELS[event.responseChosen]} ok={event.respondedCorrectly} />
       </td>
     </tr>

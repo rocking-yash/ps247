@@ -96,7 +96,7 @@ export default function ScenarioBuilder() {
               touch();
               setName(e.target.value);
             }}
-            className={`${FIELD} w-64`}
+            className={`${FIELD} w-64 phone:w-full`}
           />
         </label>
         <label className="flex items-center gap-2">
@@ -154,7 +154,7 @@ export default function ScenarioBuilder() {
       </p>
 
       <div className="relative mt-3 overflow-x-auto">
-        <table className="w-full min-w-[40rem] text-left">
+        <table className="cards w-full min-w-[40rem] text-left">
           <thead>
             <tr>
               <th className={TH}>Contact</th>
@@ -169,10 +169,11 @@ export default function ScenarioBuilder() {
           <tbody>
             {contacts.map((contact, i) => (
               <tr key={contact.key}>
-                <th scope="row" className={`${TD} font-normal`}>
+                <th data-card-title scope="row" className={`${TD} font-normal`}>
+                  <span className="hidden phone:inline">Contact </span>
                   {i + 1}
                 </th>
-                <td className={TD}>
+                <td data-label="Type" data-block className={TD}>
                   <select
                     aria-label={`Type of contact ${i + 1}`}
                     value={contact.droneType}
@@ -186,7 +187,7 @@ export default function ScenarioBuilder() {
                     ))}
                   </select>
                 </td>
-                <td className={TD}>
+                <td data-label="Appears at, seconds in" className={TD}>
                   <input
                     aria-label={`Seconds in at which contact ${i + 1} appears`}
                     type="number"
@@ -198,7 +199,7 @@ export default function ScenarioBuilder() {
                     className={`${FIELD} w-24`}
                   />
                 </td>
-                <td className={TD}>
+                <td data-label="Approach" className={TD}>
                   <select
                     aria-label={`Approach of contact ${i + 1}`}
                     value={contact.approach}

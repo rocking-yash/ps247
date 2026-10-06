@@ -32,10 +32,10 @@ const SKILLS = Object.keys(SKILL_LABELS);
 // One skill figure in the unit table. The unit's weakest is the only one
 // picked out, in the fail colour and bold.
 function SkillCell({ unit, skill }) {
-  if (!unit.skills) return <td className={`${TD} text-right`}>—</td>;
+  if (!unit.skills) return <td data-label={SKILL_LABELS[skill]} className={`${TD} text-right`}>—</td>;
   const weakest = unit.weakest === skill;
   return (
-    <td className={`${TD} text-right ${weakest ? 'font-semibold text-fail' : ''}`}>
+    <td data-label={SKILL_LABELS[skill]} className={`${TD} text-right ${weakest ? 'font-semibold text-fail' : ''}`}>
       <Count value={unit.skills[skill]} />
     </td>
   );
@@ -69,7 +69,7 @@ export default async function DashboardPage() {
       </p>
 
       <div className="relative mt-6 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
-        <table className="w-full min-w-[56rem] text-left">
+        <table className="cards w-full min-w-[56rem] text-left">
           <thead>
             <tr>
               <th className={TH}>Unit</th>
@@ -89,20 +89,20 @@ export default async function DashboardPage() {
           <tbody>
             {units.map((unit) => (
               <tr key={unit.unit} className="row-hover">
-                <th scope="row" className={`${TD} whitespace-nowrap font-medium`}>
+                <th data-card-title scope="row" className={`${TD} whitespace-nowrap font-medium`}>
                   {unit.unit}
                 </th>
-                <td className={`${TD} text-right`}><Count value={unit.trainees} /></td>
-                <td className={`${TD} text-right`}><Count value={unit.sessions} /></td>
-                <td className={`${TD} text-right`}><Count value={unit.avgComposite} /></td>
+                <td data-label="Trainees" className={`${TD} text-right`}><Count value={unit.trainees} /></td>
+                <td data-label="Sessions" className={`${TD} text-right`}><Count value={unit.sessions} /></td>
+                <td data-label="Average composite" className={`${TD} text-right`}><Count value={unit.avgComposite} /></td>
                 {SKILLS.map((skill) => (
                   <SkillCell key={skill} unit={unit} skill={skill} />
                 ))}
-                <td className={`${TD} ${unit.weakest ? 'font-semibold text-fail' : 'text-body/70'}`}>
+                <td data-label="Weakest skill" className={`${TD} ${unit.weakest ? 'font-semibold text-fail' : 'text-body/70'}`}>
                   {unit.weakest ? SKILL_LABELS[unit.weakest] : 'No sessions yet'}
                 </td>
-                <td className={`${TD} text-right`}><Count value={unit.falsePositives} /></td>
-                <td className={`${TD} pr-0 text-right`}><Count value={unit.missed} /></td>
+                <td data-label="False positives" className={`${TD} text-right`}><Count value={unit.falsePositives} /></td>
+                <td data-label="Misses" className={`${TD} pr-0 text-right`}><Count value={unit.missed} /></td>
               </tr>
             ))}
             {units.length === 0 && (
@@ -128,7 +128,7 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
       </p>
 
       <div className="mt-6 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
-        <table className="w-full text-left">
+        <table className="cards w-full text-left">
           <thead>
             <tr>
               <th className={TH}>Trainee</th>
@@ -147,14 +147,14 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
                 </tr>
                 {trainees.filter((trainee) => trainee.unit === unit).map((trainee) => (
                   <tr key={trainee.id} className="row-hover">
-                    <td className={TD}>
+                    <td data-card-title className={TD}>
                       <Link href={`/dashboard/${trainee.id}`} className="link-wipe font-medium text-accent">
                         {fullName(trainee)}
                       </Link>
                     </td>
-                    <td className={`${TD} text-right`}><Count value={trainee.sessionCount} /></td>
-                    <td className={`${TD} text-right`}><Count value={trainee.avgComposite} /></td>
-                    <td className={`${TD} whitespace-nowrap pr-0`}>{formatDateTime(trainee.lastSessionAt)}</td>
+                    <td data-label="Sessions" className={`${TD} text-right`}><Count value={trainee.sessionCount} /></td>
+                    <td data-label="Average composite" className={`${TD} text-right`}><Count value={trainee.avgComposite} /></td>
+                    <td data-label="Last session" className={`${TD} whitespace-nowrap pr-0`}>{formatDateTime(trainee.lastSessionAt)}</td>
                   </tr>
                 ))}
               </Fragment>
@@ -179,7 +179,7 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
       </p>
 
       <div className="relative mt-6 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
-        <table className="w-full min-w-[60rem] text-left">
+        <table className="cards w-full min-w-[60rem] text-left">
           <thead>
             <tr>
               <th className={TH}>Scenario</th>
@@ -193,14 +193,14 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
               const assigned = trainees.filter((t) => t.assignedScenario === script.id);
               return (
                 <tr key={script.id} className="row-hover">
-                  <th scope="row" className={`${TD} align-top font-medium`}>
+                  <th data-card-title scope="row" className={`${TD} align-top font-medium`}>
                     {script.name}
                     <span className="block text-sm font-normal text-body">
                       Level {script.level}, {describeConditions(script)}
                     </span>
                     <span className="block text-sm font-normal text-body">{describeScript(script)}</span>
                   </th>
-                  <td className={`${TD} align-top text-sm`}>
+                  <td data-label="Contacts, in order" data-block className={`${TD} align-top text-sm`}>
                     <ol>
                       {script.contacts.map((contact, i) => (
                         <li key={i} className="whitespace-nowrap">
@@ -210,7 +210,7 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
                       ))}
                     </ol>
                   </td>
-                  <td className={`${TD} align-top text-sm`}>
+                  <td data-label="Assigned to" data-block className={`${TD} align-top text-sm`}>
                     {assigned.length === 0 ? (
                       <span className="text-body">No one</span>
                     ) : (
@@ -221,7 +221,7 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
                       </ul>
                     )}
                   </td>
-                  <td className={`${TD} pr-0 align-top`}>
+                  <td data-label="Assign" data-block className={`${TD} pr-0 align-top`}>
                     <AssignScenario scenarioId={script.id} scenarioName={script.name} units={unitNames} trainees={pickable} />
                   </td>
                 </tr>
@@ -254,7 +254,7 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
       </p>
 
       <div className="relative mt-6 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
-        <table className="w-full min-w-[56rem] text-left">
+        <table className="cards w-full min-w-[56rem] text-left">
           <thead>
             <tr>
               <th className={TH}>Trainee</th>
@@ -266,11 +266,11 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
           <tbody>
             {trainees.map((trainee, i) => (
               <tr key={trainee.id} className="row-hover">
-                <th scope="row" className={`${TD} align-top font-medium`}>
+                <th data-card-title scope="row" className={`${TD} align-top font-medium`}>
                   {fullName(trainee)}
                   <span className="block text-sm font-normal text-body">{trainee.unit}</span>
                 </th>
-                <td className={`${TD} align-top`}>
+                <td data-label="Instructor sets" data-block className={`${TD} align-top`}>
                   <AssignmentControls
                     traineeId={trainee.id}
                     traineeName={fullName(trainee)}
@@ -282,10 +282,10 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
                     Base level {assignments[i].baseLevel}, {assignments[i].lightingChoice}, {TERRAIN_LABELS[assignments[i].terrainChoice].toLowerCase()}
                   </span>
                 </td>
-                <td className={`${TD} align-top`}>
+                <td data-label="System recommends" data-block className={`${TD} align-top`}>
                   <SystemRecommends next={assignments[i]} />
                 </td>
-                <td className={`${TD} pr-0 align-top`}>
+                <td data-label="Next session" data-block className={`${TD} pr-0 align-top`}>
                   <NextSession next={assignments[i]} trainee={{ id: trainee.id, name: fullName(trainee) }} />
                 </td>
               </tr>

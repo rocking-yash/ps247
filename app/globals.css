@@ -14,6 +14,22 @@
   --color-sky: #0b121a;     /* behind the 3D view, which stays dark */
 }
 
+/* Phone-sized screens: narrow and upright (phone-p), or short and on its
+   side (phone-l); `phone` is either. Every adaptation for phones sits behind
+   one of these, here or as a class prefix, so nothing in it reaches a desktop
+   window. lib/usePhone.js holds the same conditions for scripts. */
+@custom-variant phone-p (@media (max-width: 47.99rem) and (orientation: portrait));
+@custom-variant phone-l (@media (max-height: 31.25rem) and (orientation: landscape));
+@custom-variant phone {
+  @media (max-width: 47.99rem) and (orientation: portrait) {
+    @slot;
+  }
+
+  @media (max-height: 31.25rem) and (orientation: landscape) {
+    @slot;
+  }
+}
+
 @theme inline {
   --font-sans: var(--font-plex);
 }
@@ -473,6 +489,142 @@ html.reveal-ready [data-rule][data-ruled]::before {
   ::view-transition-old(*),
   ::view-transition-new(*) {
     animation: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Phones. Layout only: the colours, type and components are the same ones.
+   --------------------------------------------------------------------------- */
+@media (max-width: 47.99rem) and (orientation: portrait), (max-height: 31.25rem) and (orientation: landscape) {
+  /* Clear of the notch when the phone is on its side. */
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+
+  /* Anything pressed is at least 44px tall. */
+  button,
+  select,
+  input:not([type='radio'], [type='checkbox']),
+  .press {
+    min-height: 2.75rem;
+  }
+
+  a.press {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* A text link keeps its size and gains a larger area to hit. */
+  .link-wipe::before {
+    content: '';
+    position: absolute;
+    inset: -0.875rem -0.375rem;
+  }
+
+  /* Simulator options: taller, so a thumb lands on one and only one. */
+  .choice {
+    min-height: 3rem;
+  }
+
+  /* So the simulator's submit bar can stay in reach while its panel scrolls. */
+  .reveal-in > * {
+    overflow: visible;
+  }
+
+  /* Tables marked .cards: each row becomes a card. The heading cell is the
+     card's title, and every other cell is its column heading (data-label)
+     with the value beside it. Nothing shrinks and nothing scrolls sideways. */
+  table.cards {
+    display: block;
+    min-width: 0 !important;
+  }
+
+  .cards thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .cards tbody,
+  .cards tr,
+  .cards caption {
+    display: block;
+  }
+
+  .cards tr {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--color-rule);
+  }
+
+  .cards tbody:last-child > tr:last-child {
+    border-bottom: 0;
+  }
+
+  .cards td,
+  .cards th[scope='row'] {
+    display: block;
+    overflow: hidden; /* contains the floated label */
+    border: 0 !important;
+    padding: 0.3rem 0 !important;
+    text-align: right !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  .cards td[data-label]::before {
+    content: attr(data-label);
+    float: left;
+    margin-right: 1rem;
+    color: var(--color-body);
+    font-size: 0.875rem;
+    font-weight: 400;
+  }
+
+  /* The card's title, and cells too long to sit beside their label. */
+  .cards td[data-card-title],
+  .cards th[data-card-title],
+  .cards td[data-block] {
+    text-align: left !important;
+  }
+
+  .cards .whitespace-nowrap {
+    white-space: normal !important;
+  }
+
+  .cards [data-card-title] {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .cards td[data-block]::before {
+    float: none;
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+
+  /* A verdict keeps its coloured edge: it moves from the cell to the card. */
+  .cards tr:has(> .border-l-pass) {
+    border-left: 4px solid var(--color-pass);
+    padding-left: 0.75rem;
+  }
+
+  .cards tr:has(> .border-l-fail) {
+    border-left: 4px solid var(--color-fail);
+    padding-left: 0.75rem;
+  }
+
+  /* A row that only heads a group (a unit, a session) is not a card. */
+  .cards tr:has(> th[scope='rowgroup']) {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .cards th[scope='rowgroup'] {
+    display: block;
   }
 }
 

@@ -11,6 +11,7 @@ import { PerformanceMonitor } from '@react-three/drei';
 import Environment from '@/components/simulator/Environment';
 import { MODELS, ObserverCamera } from '@/components/simulator/Scene';
 import { useReducedMotion } from '@/lib/useReducedMotion';
+import { usePhone } from '@/lib/usePhone';
 
 // The observer looks further up than in an exercise, so the hero is mostly
 // sky and the horizon sits below the headline.
@@ -172,6 +173,9 @@ export default function AmbientSky() {
   const [onScreen, setOnScreen] = useState(true);
   const [tabShowing, setTabShowing] = useState(true);
   const still = useReducedMotion();
+  // A phone starts a step down in resolution and draws a lighter scene.
+  const phone = usePhone();
+  const dpr = DPR_STEPS[Math.min(dprStep + (phone ? 1 : 0), DPR_STEPS.length - 1)];
 
   // Stop rendering once the view has scrolled out of sight, or the tab is hidden.
   useEffect(() => {
@@ -187,10 +191,10 @@ export default function AmbientSky() {
 
   return (
     <div ref={wrapper} aria-hidden="true" className="pointer-events-none absolute inset-0">
-      <Canvas dpr={[1, DPR_STEPS[dprStep]]} frameloop={still ? 'demand' : onScreen && tabShowing ? 'always' : 'never'}>
+      <Canvas dpr={[1, dpr]} frameloop={still ? 'demand' : onScreen && tabShowing ? 'always' : 'never'}>
         <PerformanceMonitor onDecline={() => setDprStep((step) => Math.min(step + 1, DPR_STEPS.length - 1))} />
         <HeroCamera framing={wide ? 'wide' : 'narrow'} still={still} />
-        <Environment lighting="day" still={still} />
+        <Environment lighting="day" still={still} light={phone} />
         {PATHS.map((path) => (
           <Drifter key={path.phase} path={framed(path, wide ? 'wide' : 'narrow')} still={still} />
         ))}

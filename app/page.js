@@ -3,6 +3,7 @@ import ScrollCue from "@/components/landing/ScrollCue";
 import AmbientSky from "@/components/landing/AmbientSky";
 import ScrollMotion from "@/components/landing/ScrollMotion";
 import SiteNav from "@/components/landing/SiteNav";
+import SeedValue from "@/components/landing/SeedValue";
 import Count from "@/components/Count";
 import EventRow, { EventTableHead, TH, TD } from "@/components/dashboard/EventRow";
 import { getLandingData } from "@/lib/landing";
@@ -60,7 +61,8 @@ const COMPOSITE = [
   ["Each missed contact", -SCORING.missedPenalty],
 ];
 
-const SECTION = "scroll-mt-14 border-b border-rule py-20 sm:py-24";
+// Every section, and the strip under the hero, is spaced by the same amount.
+const SECTION = "scroll-mt-14 border-b border-rule py-14";
 const WRAP = "mx-auto w-full max-w-6xl px-6";
 // Section headings pin under the nav while their section scrolls past. The
 // pseudo-element only widens the paper behind the pinned heading; it takes
@@ -68,8 +70,8 @@ const WRAP = "mx-auto w-full max-w-6xl px-6";
 const H2 = "text-3xl font-bold tracking-tight sticky top-14 z-10 bg-paper before:absolute before:inset-x-0 before:-inset-y-3 before:-z-10 before:bg-paper before:content-['']";
 const LEAD = "mt-3 max-w-prose text-lg text-body";
 const CARD = "card-hover rounded-xl border border-rule bg-paper p-6";
-const PRIMARY = "press bg-accent px-4 py-2.5 font-medium text-white sm:px-5";
-const SECONDARY = "press border border-rule bg-paper px-4 py-2.5 font-medium sm:px-5";
+const PRIMARY = "press bg-accent px-4 py-2.5 font-medium text-white sm:px-5 phone-p:px-3";
+const SECONDARY = "press border border-rule bg-paper px-4 py-2.5 font-medium sm:px-5 phone-p:px-3";
 
 // Four things the page goes on to show, in a strip under the hero.
 const AT_A_GLANCE = [
@@ -89,9 +91,19 @@ function Figure({ label, value, note }) {
   );
 }
 
+// The seed table's columns, each saying what its figure is.
+const SEED_COLUMNS = [
+  "Seed",
+  "Difficulty level (1 to 5)",
+  "Contacts in the session",
+  "Contacts in its swarm",
+  "Swarm starts arriving",
+  "Where and when the first contact appears",
+];
+
 function bearing(deg) {
   if (deg === 0) return "Dead ahead";
-  return `${Math.abs(deg)}° ${deg < 0 ? "left" : "right"}`;
+  return `${Math.abs(deg)}° ${deg < 0 ? "left" : "right"} of centre`;
 }
 
 export default async function Home() {
@@ -115,7 +127,7 @@ export default async function Home() {
         {/* Hero: the simulator's own scene, edge to edge, with the text over it.
             A scrim in the page's surface colour sits between them wherever
             the text is (hero-scrim and hero-copy in globals.css). */}
-        <section id="top" className="relative flex min-h-svh flex-col justify-end overflow-hidden bg-tint pt-48 lg:justify-center lg:pt-0">
+        <section id="top" className="relative flex min-h-svh flex-col justify-end overflow-hidden bg-tint pt-48 lg:justify-center lg:pt-0 phone-p:min-h-[70svh]">
           <AmbientSky />
           <div aria-hidden="true" className="hero-scrim" />
           <div data-parallax className="hero-copy pb-14 pt-6 lg:pb-16 lg:pt-28">
@@ -143,7 +155,7 @@ export default async function Home() {
           <ScrollCue />
         </section>
 
-        <div className={`${WRAP} py-16`}>
+        <div className={`${WRAP} py-14`}>
           <ul className="grid gap-x-8 gap-y-5 rounded-2xl bg-tint px-6 py-6 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-rule lg:gap-x-0">
             {AT_A_GLANCE.map(([title, text]) => (
               <li key={title} className="lg:px-6 lg:first:pl-0 lg:last:pr-0">
@@ -195,7 +207,7 @@ export default async function Home() {
               source, not a trained model, so an instructor can read, question and change it.
             </p>
             <div className="relative mt-8 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
-              <table className="w-full min-w-[40rem] text-left">
+              <table className="cards w-full min-w-[40rem] text-left">
                 <thead>
                   <tr>
                     <th className={TH}>Contact</th>
@@ -206,9 +218,9 @@ export default async function Home() {
                 <tbody data-reveal-rows>
                   {Object.entries(CORRECT_RESPONSE).map(([droneType, response]) => (
                     <tr key={droneType}>
-                      <td className={`${TD} whitespace-nowrap`}>{DRONE_LABELS[droneType]}</td>
-                      <td className={`${TD} whitespace-nowrap font-semibold`}>{RESPONSE_LABELS[response]}</td>
-                      <td className={`${TD} pr-0`}>{RATIONALE[droneType]}</td>
+                      <td data-card-title className={`${TD} whitespace-nowrap`}>{DRONE_LABELS[droneType]}</td>
+                      <td data-label="Correct response" className={`${TD} whitespace-nowrap font-semibold`}>{RESPONSE_LABELS[response]}</td>
+                      <td data-label="Reason" data-block className={`${TD} pr-0`}>{RATIONALE[droneType]}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -286,7 +298,7 @@ export default async function Home() {
             </p>
             {hasSessions ? (
               <div className="relative mt-8 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
-                <table className="w-full min-w-[52rem] text-left">
+                <table className="cards w-full min-w-[52rem] text-left">
                   <EventTableHead />
                   <tbody data-reveal-rows>
                     {data.sample.map((event, i) => (
@@ -325,13 +337,14 @@ export default async function Home() {
             </p>
             {data.ok && data.layouts.length > 0 && (
               <div className="relative mt-8 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
-                <table className="w-full min-w-[44rem] text-left text-sm">
+                <table className="cards w-full min-w-[52rem] text-left text-sm">
                   <caption className="pb-3 text-left text-body">
-                    The most recent stored seeds and the layout each one regenerates.
+                    The most recent stored seeds, one session per row, and the layout each seed
+                    regenerates. Times are counted from the start of the session.
                   </caption>
                   <thead>
                     <tr>
-                      {["Seed", "Level", "Contacts", "Swarm of", "Swarm arrives", "First contact"].map((heading) => (
+                      {SEED_COLUMNS.map((heading) => (
                         <th
                           key={heading}
                           className={`${TH} last:pr-0`}
@@ -344,15 +357,15 @@ export default async function Home() {
                   <tbody data-reveal-rows>
                     {data.layouts.map((layout) => (
                       <tr key={layout.seed}>
-                        <td className="border-b border-rule py-3 pr-5">{layout.seed}</td>
-                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5"><Count value={layout.level} onView /></td>
-                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5"><Count value={layout.contacts} onView /></td>
-                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5"><Count value={layout.swarmSize} onView /></td>
-                        <td className="whitespace-nowrap border-b border-rule py-3 pr-5">
-                          {(layout.swarmAtMs / 1000).toFixed(1)} s
+                        <td data-label={SEED_COLUMNS[0]} className="border-b border-rule py-3 pr-5"><SeedValue seed={layout.seed} /></td>
+                        <td data-label={SEED_COLUMNS[1]} className="whitespace-nowrap border-b border-rule py-3 pr-5"><Count value={layout.level} onView /></td>
+                        <td data-label={SEED_COLUMNS[2]} className="whitespace-nowrap border-b border-rule py-3 pr-5"><Count value={layout.contacts} onView /></td>
+                        <td data-label={SEED_COLUMNS[3]} className="whitespace-nowrap border-b border-rule py-3 pr-5"><Count value={layout.swarmSize} onView /></td>
+                        <td data-label={SEED_COLUMNS[4]} className="whitespace-nowrap border-b border-rule py-3 pr-5">
+                          {(layout.swarmAtMs / 1000).toFixed(1)} s in
                         </td>
-                        <td className="whitespace-nowrap border-b border-rule py-3">
-                          {bearing(layout.firstBearingDeg)}, at {(layout.firstAtMs / 1000).toFixed(1)} s
+                        <td data-label={SEED_COLUMNS[5]} className="whitespace-nowrap border-b border-rule py-3">
+                          {bearing(layout.firstBearingDeg)}, {(layout.firstAtMs / 1000).toFixed(1)} s in
                         </td>
                       </tr>
                     ))}
@@ -372,8 +385,9 @@ export default async function Home() {
             </p>
             <p data-reveal className="mt-3 max-w-prose text-body">
               In a real deployment a trainee&apos;s identity would come from the unit&apos;s own
-              system. Building a second login here would add something to secure and maintain,
-              and nothing the problem statement asks for. The instructor and trainee views are a
+              system. A second login here would duplicate something the unit already runs, adding
+              surface to secure and maintain. The effort went into the scoring and after-action
+              review instead. The instructor and trainee views are a
               switch for the same reason: they decide what is shown, not what is permitted.
             </p>
           </div>
@@ -381,7 +395,7 @@ export default async function Home() {
       </main>
 
       <footer className="bg-tint text-sm text-body">
-        <div className={`${WRAP} flex flex-col gap-x-10 gap-y-1 py-8 sm:flex-row`}>
+        <div className={`${WRAP} flex flex-col gap-x-10 gap-y-1 py-8 sm:flex-row phone:pb-[calc(2rem+env(safe-area-inset-bottom))]`}>
           <span>Smart India Hackathon 2026</span>
           <span>Problem statement SIH26247</span>
           <span>Ministry of Defence, Defence Services Staff College</span>

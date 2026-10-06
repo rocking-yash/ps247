@@ -180,7 +180,7 @@ export default async function TraineePage({ params }) {
           {events.length > 0 && ` ${events.length} in total: ${tally}.`}
         </p>
         <div className="relative mt-4 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
-          <table className="w-full min-w-[52rem] text-left">
+          <table className="cards w-full min-w-[52rem] text-left">
             <EventTableHead />
             {recent.map((session) => (
               <SessionGroup key={String(session._id)} session={session} script={scriptOf(session)} />
@@ -204,7 +204,7 @@ export default async function TraineePage({ params }) {
               openLabel="Hide earlier sessions"
             >
               <div className="relative overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2 pt-2">
-                <table className="w-full min-w-[52rem] text-left">
+                <table className="cards w-full min-w-[52rem] text-left">
                   <EventTableHead />
                   {earlier.map((session) => (
                     <SessionGroup key={String(session._id)} session={session} script={scriptOf(session)} />

@@ -124,13 +124,33 @@ export default function SessionsTable({ sessions, units, trainees, initial }) {
             Clear filters
           </button>
         )}
+        {/* Phones: the column headings are not shown there, so sorting moves here. */}
+        <label className="hidden items-center gap-2 phone:flex">
+          <span>Sort by</span>
+          <select
+            value={`${sort.key}:${sort.direction}`}
+            onChange={(e) => {
+              const [key, direction] = e.target.value.split(':');
+              setSort({ key, direction });
+            }}
+            className={FIELD}
+          >
+            {COLUMNS.flatMap(([key, heading, , firstDirection]) =>
+              [firstDirection, firstDirection === 'asc' ? 'desc' : 'asc'].map((direction) => (
+                <option key={`${key}:${direction}`} value={`${key}:${direction}`}>
+                  {heading}, {direction === 'asc' ? 'lowest first' : 'highest first'}
+                </option>
+              )),
+            )}
+          </select>
+        </label>
         <span role="status" className="text-body">
           Showing {shown.length} of {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}
         </span>
       </div>
 
       <div className="relative mt-4 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
-        <table className="w-full min-w-[70rem] text-left">
+        <table className="cards w-full min-w-[70rem] text-left">
           <thead>
             <tr>
               {COLUMNS.map(([key, heading, numeric, firstDirection], i) => {
@@ -163,7 +183,7 @@ export default function SessionsTable({ sessions, units, trainees, initial }) {
                 onClick={() => router.push(`/dashboard/sessions/${s.id}`)}
                 className="row-hover cursor-pointer"
               >
-                <td className={TD}>
+                <td data-card-title className={TD}>
                   {/* The link is the keyboard and screen-reader way in; the whole row is clickable too. */}
                   <Link
                     href={`/dashboard/sessions/${s.id}`}
@@ -174,21 +194,21 @@ export default function SessionsTable({ sessions, units, trainees, initial }) {
                   </Link>
                   {!s.completed && <span className="ml-2 text-sm text-body">Not completed</span>}
                 </td>
-                <td className={TD}>{s.trainee}</td>
-                <td className={TD}>{s.unit}</td>
-                <td className={`${TD} capitalize`}>{s.terrain === 'urban' ? `${s.lighting}, urban` : s.lighting}</td>
-                <td className={TD}>{s.scenario}</td>
-                <td className={`${TD} text-right`}>{s.level}</td>
-                <td className={`${TD} text-right`}>{s.detect ?? '—'}</td>
-                <td className={`${TD} text-right`}>{s.classify ?? '—'}</td>
-                <td className={`${TD} text-right`}>{s.respond ?? '—'}</td>
-                <td className={`${TD} text-right`}>
+                <td data-label="Trainee" className={TD}>{s.trainee}</td>
+                <td data-label="Unit" className={TD}>{s.unit}</td>
+                <td data-label="Conditions" className={`${TD} capitalize`}>{s.terrain === 'urban' ? `${s.lighting}, urban` : s.lighting}</td>
+                <td data-label="Scenario" className={TD}>{s.scenario}</td>
+                <td data-label="Level" className={`${TD} text-right`}>{s.level}</td>
+                <td data-label="Detect" className={`${TD} text-right`}>{s.detect ?? '—'}</td>
+                <td data-label="Classify" className={`${TD} text-right`}>{s.classify ?? '—'}</td>
+                <td data-label="Respond" className={`${TD} text-right`}>{s.respond ?? '—'}</td>
+                <td data-label="Composite" className={`${TD} text-right`}>
                   <span className={`inline-block min-w-10 rounded-md px-2 py-0.5 text-center font-semibold ${compositeTone(s.composite)}`}>
                     {s.composite}
                   </span>
                 </td>
-                <td className={`${TD} text-right`}>{s.falsePositives}</td>
-                <td className={`${TD} pr-0 text-right`}>{s.missed}</td>
+                <td data-label="False positives" className={`${TD} text-right`}>{s.falsePositives}</td>
+                <td data-label="Misses" className={`${TD} pr-0 text-right`}>{s.missed}</td>
               </tr>
             ))}
             {shown.length === 0 && (

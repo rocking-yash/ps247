@@ -34,7 +34,7 @@ function ChoiceGroup({ legend, options, labels, value, onChange }) {
   return (
     <fieldset className="mt-5">
       <legend className="text-sm font-semibold">{legend}</legend>
-      <div className="mt-2 flex flex-col gap-1.5">
+      <div className="mt-2 flex flex-col gap-1.5 phone:gap-2.5">
         {options.map((option) => {
           const chosen = value === option;
           return (
@@ -90,7 +90,7 @@ function DecisionPanel({ detectedAt, waiting, onSubmit }) {
         onChange={setResponseChosen}
       />
       {/* Set apart from the choices, and it reads back what will be submitted. */}
-      <div className="mt-5 border-t border-rule pt-3">
+      <div className="mt-5 border-t border-rule pt-3 phone:sticky phone:bottom-0 phone:z-10 phone:-mx-5 phone:bg-paper phone:px-5 phone:pb-3">
         <p className="text-sm text-body">
           {classifiedAs && responseChosen ? (
             <>
@@ -493,6 +493,13 @@ export default function Simulator({ replay = null }) {
   }
 
   const atRest = phase === 'idle' || phase === 'done';
+
+  // Upright phone only: the panel is a sheet under the view. It opens by
+  // itself whenever there is something to read or decide and closes while
+  // the trainee is scanning; the handle overrides that until the next change.
+  const sheetMoment = `${phase}-${active ? active.index : 'scan'}`;
+  const [sheetChoice, setSheetChoice] = useState({ moment: null, open: false });
+  const sheetOpen = sheetChoice.moment === sheetMoment ? sheetChoice.open : phase !== 'running' || Boolean(active);
   // Readouts and view show the session in progress or just finished; before
   // the first session they show the one coming up.
   const shown = phase === 'idle' ? assignment : running;
@@ -500,7 +507,7 @@ export default function Simulator({ replay = null }) {
   // The view is kept clear: every control and readout lives in the
   // instrument column beside it (below it on a narrow screen).
   return (
-    <div className="fixed inset-0 flex flex-col bg-paper text-ink md:flex-row">
+    <div className="fixed inset-0 flex flex-col bg-paper text-ink md:flex-row phone:pl-[env(safe-area-inset-left)] phone:pr-[env(safe-area-inset-right)] phone:pt-[env(safe-area-inset-top)] phone-l:flex-row">
       <div className="relative min-h-0 flex-1 bg-sky">
         <Scene
           scenario={scenario}
@@ -514,8 +521,23 @@ export default function Simulator({ replay = null }) {
         />
       </div>
 
-      <aside className="flex max-h-[55vh] w-full shrink-0 flex-col overflow-y-auto border-t border-rule md:max-h-none md:w-80 md:border-l md:border-t-0">
-        <div className="px-5 pt-4">
+      <aside
+        className={`flex max-h-[55vh] w-full shrink-0 flex-col overflow-y-auto border-t border-rule md:max-h-none md:w-80 md:border-l md:border-t-0 phone:pb-[env(safe-area-inset-bottom)] phone-p:max-h-none phone-p:motion-safe:transition-[height] phone-p:motion-safe:duration-200 phone-l:max-h-none phone-l:w-72 phone-l:border-l phone-l:border-t-0 ${
+          sheetOpen ? 'phone-p:h-[74svh]' : 'phone-p:h-[30svh]'
+        }`}
+      >
+        <button
+          type="button"
+          aria-expanded={sheetOpen}
+          onClick={() => setSheetChoice({ moment: sheetMoment, open: !sheetOpen })}
+          className="sticky top-0 z-20 hidden w-full shrink-0 items-center justify-center gap-2 border-b border-rule bg-paper text-sm font-medium text-body phone-p:flex"
+        >
+          <svg aria-hidden="true" width="14" height="8" viewBox="0 0 14 8" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            {sheetOpen ? <path d="M1 1l6 6 6-6" /> : <path d="M1 7l6-6 6 6" />}
+          </svg>
+          {sheetOpen ? 'Show more of the view' : 'Show more of the panel'}
+        </button>
+        <div className="px-5 pt-4 phone:order-2 phone:pb-4">
           <h1 className="text-base font-bold tracking-tight">Counter-drone exercise</h1>
           <dl className="mt-2 border-t border-rule">
             {me && !replay && <Readout label="Trainee" value={fullName(me)} />}
@@ -539,7 +561,7 @@ export default function Simulator({ replay = null }) {
           </dl>
         </div>
 
-        <div className="px-5 py-5" aria-live="polite">
+        <div className="px-5 py-5 phone:order-1 phone:pb-2" aria-live="polite">
           {phase === 'idle' && replay && !replay.exact && (
             <p className="text-sm">
               {replay.scripted
@@ -621,7 +643,7 @@ export default function Simulator({ replay = null }) {
         </div>
 
         {atRest && (
-          <p className="mt-auto px-5 pb-4 text-sm">
+          <p className="mt-auto px-5 pb-4 text-sm phone:order-3">
             {replay ? (
               <Link href={`/dashboard/${replay.traineeId}`} className="link-wipe text-accent">
                 Back to the session record

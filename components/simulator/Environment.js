@@ -196,6 +196,8 @@ export function useBlobTexture() {
 // Sky: gradient, sun glow and two layers of slow cloud, in one shader.
 // ---------------------------------------------------------------------------
 
+const LIGHT_SKY = { ONE_CLOUD_LAYER: 1 };
+
 const SKY_VERTEX = `
   varying vec3 vDirection;
   void main() {
@@ -240,7 +242,11 @@ const SKY_FRAGMENT = `
     // drifting. It thins to nothing low in the sky, where contacts fly, so a
     // silhouette is never set against it at close range.
     vec2 over = d.xz / max(d.y, 0.06) * 0.55 + vec2(time * 0.006, time * 0.002);
-    float density = fbm(over) * 0.65 + fbm(over * 2.7 + 5.0) * 0.35;
+    #ifdef ONE_CLOUD_LAYER
+      float density = fbm(over);
+    #else
+      float density = fbm(over) * 0.65 + fbm(over * 2.7 + 5.0) * 0.35;
+    #endif
     float cover = smoothstep(0.46, 0.76, density) * cloudAmount * smoothstep(0.2, 0.45, height);
     colour = mix(colour, cloud + sunGlow * pow(towardSun, 3.0) * 0.2, cover);
 
@@ -249,7 +255,8 @@ const SKY_FRAGMENT = `
   }
 `;
 
-function Sky({ look, still }) {
+// light: one cloud layer instead of two (phones).
+function Sky({ look, still, light }) {
   const material = useRef();
   const uniforms = useMemo(
     () => ({
@@ -274,7 +281,8 @@ function Sky({ look, still }) {
       <sphereGeometry args={[1, 32, 16]} />
       <shaderMaterial
         ref={material}
-        key={look.zenith}
+        key={light ? `${look.zenith}-light` : look.zenith}
+        {...(light ? { defines: LIGHT_SKY } : {})}
         side={BackSide}
         depthWrite={false}
         uniforms={uniforms}
@@ -321,9 +329,14 @@ function tuftLayout() {
   return tufts;
 }
 
-function GrassTufts({ tint }) {
+// light: a third as many (phones). The nearest are generated first, so the
+// ones kept are the ones that show.
+const LIGHT_TUFT_COUNT = 110;
+
+function GrassTufts({ tint, light }) {
   const mesh = useRef();
-  const tufts = useMemo(() => cached('tufts', tuftLayout), []);
+  const all = useMemo(() => cached('tufts', tuftLayout), []);
+  const tufts = useMemo(() => (light ? all.slice(0, LIGHT_TUFT_COUNT) : all), [all, light]);
 
   useLayoutEffect(() => {
     const matrix = new Matrix4();
@@ -345,7 +358,7 @@ function GrassTufts({ tint }) {
   }, [tufts]);
 
   return (
-    <instancedMesh ref={mesh} args={[undefined, undefined, tufts.length]} frustumCulled={false}>
+    <instancedMesh key={tufts.length} ref={mesh} args={[undefined, undefined, tufts.length]} frustumCulled={false}>
       <coneGeometry args={[0.45, 1.3, 5]} />
       <meshBasicMaterial color={tint} />
     </instancedMesh>
@@ -470,7 +483,7 @@ function UrbanBlocks({ shadowOpacity }) {
   );
 }
 
-function Ground({ shadowOpacity, tuftTint, urban }) {
+function Ground({ shadowOpacity, tuftTint, urban, light }) {
   const map = useMemo(() => cached(urban ? 'ground-urban' : 'ground', () => groundTexture(urban)), [urban]);
   const [ax, , az] = ASSET_POSITION;
 
@@ -493,7 +506,7 @@ function Ground({ shadowOpacity, tuftTint, urban }) {
         </mesh>
       ))}
 
-      {urban ? <UrbanBlocks shadowOpacity={shadowOpacity} /> : <GrassTufts tint={tuftTint} />}
+      {urban ? <UrbanBlocks shadowOpacity={shadowOpacity} /> : <GrassTufts tint={tuftTint} light={light} />}
       <ApronJoints />
 
       <group position={[ax, 0, az]}>
@@ -530,16 +543,17 @@ function Treeline() {
 
 // lighting: 'day' | 'night'.  terrain: 'rural' | 'urban'.
 // still: freeze the clouds (reduced motion).
-export default function Environment({ lighting = 'day', terrain = 'rural', still = false }) {
+// light: a cheaper version for phones (fewer grass tufts, one cloud layer).
+export default function Environment({ lighting = 'day', terrain = 'rural', still = false, light = false }) {
   const urban = terrain === 'urban';
   const look = CONDITIONS[lighting] ?? CONDITIONS.day;
   return (
     <>
-      <Sky look={look} still={still} />
+      <Sky look={look} still={still} light={light} />
       <fog attach="fog" args={look.fog} />
       <hemisphereLight args={look.hemisphere} />
       <directionalLight position={SUN_DIRECTION.clone().multiplyScalar(300)} {...look.sun} />
-      <Ground shadowOpacity={look.shadow} tuftTint={look.tuft} urban={urban} />
+      <Ground shadowOpacity={look.shadow} tuftTint={look.tuft} urban={urban} light={light} />
       {!urban && <Treeline />}
     </>
   );
