@@ -65,12 +65,14 @@ html:not([data-role='trainee']) [data-trainee-only] {
 }
 
 /* Landing hero: text over the live scene. The scrim is the page's own
-   surface colour, nearly opaque wherever text sits and gone beyond it, so
-   the text keeps its contrast whatever is behind it.
+   surface colour, nearly opaque wherever text sits, so the text keeps its
+   contrast whatever is behind it.
    - narrow screens: the text block is along the bottom, and the scrim rises
-     behind it and fades out above it
-   - from 64rem: the text column is on the left, and the scrim runs the full
-     height from the left edge to just past the column, then fades */
+     behind it and fades out above it. It also runs on below the hero's edge
+     (clipped), so it still covers when the text block drifts up on scroll.
+   - from 64rem: the text column is on the left, and one gradient crosses the
+     whole frame. It holds up to the end of the text column (--copy-end), then
+     eases away to nothing at the right edge, with no step anywhere. */
 .hero-copy {
   position: relative;
 }
@@ -78,7 +80,7 @@ html:not([data-role='trainee']) [data-trainee-only] {
 .hero-copy::before {
   content: '';
   position: absolute;
-  inset: -4rem 0 0;
+  inset: -4rem 0 -5rem;
   background: linear-gradient(to top, rgb(255 255 255 / 0.95) calc(100% - 4rem), rgb(255 255 255 / 0));
   pointer-events: none;
 }
@@ -93,14 +95,58 @@ html:not([data-role='trainee']) [data-trainee-only] {
   }
 
   .hero-scrim {
+    /* page gutter + column padding + the 28rem text column */
+    --copy-end: calc(max(0px, (100vw - 72rem) / 2) + 1.5rem + 28rem);
+    --rest: calc(100% - var(--copy-end));
     display: block;
     position: absolute;
-    inset-block: 0;
-    left: 0;
-    /* page gutter + column padding + the 28rem text column, then a 10rem fade */
-    width: calc(max(0px, (100vw - 72rem) / 2) + 1.5rem + 28rem + 10rem);
-    background: linear-gradient(to right, rgb(255 255 255 / 0.95) calc(100% - 10rem), rgb(255 255 255 / 0));
+    inset: 0;
+    background: linear-gradient(
+      to right,
+      rgb(255 255 255 / 0.96),
+      rgb(255 255 255 / 0.9) var(--copy-end),
+      rgb(255 255 255 / 0.8) calc(var(--copy-end) + var(--rest) * 0.12),
+      rgb(255 255 255 / 0.65) calc(var(--copy-end) + var(--rest) * 0.26),
+      rgb(255 255 255 / 0.47) calc(var(--copy-end) + var(--rest) * 0.41),
+      rgb(255 255 255 / 0.3) calc(var(--copy-end) + var(--rest) * 0.56),
+      rgb(255 255 255 / 0.16) calc(var(--copy-end) + var(--rest) * 0.71),
+      rgb(255 255 255 / 0.06) calc(var(--copy-end) + var(--rest) * 0.86),
+      rgb(255 255 255 / 0)
+    );
     pointer-events: none;
+  }
+}
+
+/* The mark at the foot of the hero that says the page goes on. It goes as
+   soon as the page is scrolled (components/landing/ScrollCue.js). */
+.scroll-cue {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  margin-left: -0.625rem;
+  color: var(--color-body);
+  opacity: 0.55;
+  transition: opacity 0.2s ease-out;
+  pointer-events: none;
+}
+
+.scroll-cue[data-gone] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .scroll-cue svg {
+    animation: cue-drift 2.4s ease-in-out infinite;
+  }
+
+  @keyframes cue-drift {
+    0%,
+    100% {
+      transform: translateY(-3px);
+    }
+    50% {
+      transform: translateY(3px);
+    }
   }
 }
 

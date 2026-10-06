@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ScrollCue from "@/components/landing/ScrollCue";
 import AmbientSky from "@/components/landing/AmbientSky";
 import ScrollMotion from "@/components/landing/ScrollMotion";
 import SiteNav from "@/components/landing/SiteNav";
@@ -114,12 +115,12 @@ export default async function Home() {
         {/* Hero: the simulator's own scene, edge to edge, with the text over it.
             A scrim in the page's surface colour sits between them wherever
             the text is (hero-scrim and hero-copy in globals.css). */}
-        <section id="top" className="relative flex min-h-[85vh] flex-col justify-end overflow-hidden bg-tint pt-48 lg:justify-center lg:pt-0">
+        <section id="top" className="relative flex min-h-svh flex-col justify-end overflow-hidden bg-tint pt-48 lg:justify-center lg:pt-0">
           <AmbientSky />
           <div aria-hidden="true" className="hero-scrim" />
-          <div className="hero-copy pb-12 pt-6 lg:pb-16 lg:pt-28">
+          <div data-parallax className="hero-copy pb-14 pt-6 lg:pb-16 lg:pt-28">
             <div className={WRAP}>
-              <div data-parallax className="relative lg:max-w-[28rem]">
+              <div className="relative lg:max-w-[28rem]">
                 <h1 className="resolve text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl sm:leading-[1.06] lg:text-6xl lg:leading-[1.04]">
                   Counter-drone training that grades the <span className="text-accent">decision</span>, not
                   the aim.
@@ -139,6 +140,7 @@ export default async function Home() {
               </div>
             </div>
           </div>
+          <ScrollCue />
         </section>
 
         <div className={`${WRAP} py-16`}>

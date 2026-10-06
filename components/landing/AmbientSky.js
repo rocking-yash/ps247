@@ -26,7 +26,7 @@ const PITCH = 0.42;
 const PATHS = [
   { type: 'quad_recon', centre: [2, -112], radius: [16, 58], altitude: 36, period: 52, phase: 0.4, direction: 1, light: '#ff4a3d' },
   { type: 'fixedwing_kamikaze', centre: [-8, -195], radius: [30, 105], altitude: 66, period: 68, phase: 2.6, direction: -1, light: '#3ddc84' },
-  { type: 'decoy_civilian', centre: [14, -88], radius: [10, 38], altitude: 17, narrowAltitude: 28, period: 44, phase: 4.4, direction: 1, light: '#ff4a3d' },
+  { type: 'decoy_civilian', centre: [10, -88], radius: [10, 38], altitude: 17, narrowAltitude: 28, period: 44, phase: 4.4, direction: 1, light: '#ff4a3d' },
 ];
 
 // The camera drifts a few metres from side to side, always looking at a
@@ -36,22 +36,27 @@ const DRIFT = { metres: 5, seconds: 46, lookAhead: 110 };
 
 // The text sits over the scene, so the scene keeps out of its way.
 //   wide    the text holds the left of the frame: the camera looks off-axis,
-//           which slides the whole scene to the right without distorting it
+//           which slides the whole scene right of centre and lifts it without
+//           distorting it. The loops are wider and lean right (slide: metres
+//           across per metre of depth), so the structures can sit close to
+//           the text while the contacts fill the frame from the text's edge
+//           to the right edge without crossing the text.
 //   narrow  the text holds the bottom, and only a band of sky above it is
 //           free. The loops are pulled in (less sideways, much less depth) so
 //           the contacts keep to a thin band of elevation, and the camera is
 //           pitched so that band sits just under the nav.
 const DEG = Math.PI / 180;
 const FRAMING = {
-  wide: { pitch: PITCH, shift: 0.24, halfWidth: 33 * DEG, spread: 1, depth: 1 },
-  narrow: { shift: 0, halfWidth: 20 * DEG, spread: 0.6, depth: 0.3, bandTop: { elevation: 24.5 * DEG, at: 0.1 } },
+  wide: { pitch: PITCH, shift: 0.12, lift: 0.1, halfWidth: 40 * DEG, spread: 1.25, depth: 1, slide: 0.13 },
+  narrow: { shift: 0, lift: 0, halfWidth: 20 * DEG, spread: 0.6, depth: 0.3, slide: 0, bandTop: { elevation: 24.5 * DEG, at: 0.1 } },
 };
 
 // The loop a contact flies under this framing.
 function framed(path, framing) {
-  const { spread, depth } = FRAMING[framing];
+  const { spread, depth, slide } = FRAMING[framing];
   return {
     ...path,
+    slide,
     centre: [path.centre[0] * spread, path.centre[1]],
     radius: [path.radius[0] * spread, path.radius[1] * depth],
     altitude: framing === 'narrow' ? path.narrowAltitude ?? path.altitude : path.altitude,
@@ -59,7 +64,7 @@ function framed(path, framing) {
 }
 
 function HeroCamera({ framing, still }) {
-  const { shift, halfWidth, bandTop } = FRAMING[framing];
+  const { shift, lift, halfWidth, bandTop } = FRAMING[framing];
 
   useFrame(({ camera, clock, size }) => {
     const x = still ? 0 : Math.sin((clock.elapsedTime / DRIFT.seconds) * Math.PI * 2) * DRIFT.metres;
@@ -72,12 +77,14 @@ function HeroCamera({ framing, still }) {
     camera.rotation.set(pitch, Math.atan2(x, DRIFT.lookAhead), 0);
 
     // Off-axis view: only touched when the frame or the framing changes.
-    const offset = -Math.round(size.width * shift);
+    const offsetX = -Math.round(size.width * shift);
+    const offsetY = Math.round(size.height * lift);
     const view = camera.view;
-    const current = view && view.enabled ? view.offsetX : 0;
-    if (current !== offset || (view && view.enabled && (view.fullWidth !== size.width || view.fullHeight !== size.height))) {
-      if (offset === 0) camera.clearViewOffset();
-      else camera.setViewOffset(size.width, size.height, offset, 0, size.width, size.height);
+    const on = Boolean(view && view.enabled);
+    if ((on ? view.offsetX : 0) !== offsetX || (on ? view.offsetY : 0) !== offsetY
+      || (on && (view.fullWidth !== size.width || view.fullHeight !== size.height))) {
+      if (offsetX === 0 && offsetY === 0) camera.clearViewOffset();
+      else camera.setViewOffset(size.width, size.height, offsetX, offsetY, size.width, size.height);
     }
   });
 
@@ -124,18 +131,16 @@ function Drifter({ path, still }) {
   useFrame(({ clock }) => {
     const t = still ? STILL_AT : STILL_AT + clock.elapsedTime;
     const angle = path.phase + path.direction * (2 * Math.PI * t) / path.period;
+    const depth = path.centre[1] + path.radius[1] * Math.sin(angle);
     group.current.position.set(
-      path.centre[0] + path.radius[0] * Math.cos(angle),
+      path.centre[0] + path.radius[0] * Math.cos(angle) - path.slide * depth,
       path.altitude + Math.sin(t / 3 + path.phase) * 0.8,
-      path.centre[1] + path.radius[1] * Math.sin(angle),
+      depth,
     );
     // Point the nose along the loop; it only shows on the fixed-wing.
     const { x, y, z } = group.current.position;
-    group.current.lookAt(
-      x - path.direction * path.radius[0] * Math.sin(angle),
-      y,
-      z + path.direction * path.radius[1] * Math.cos(angle),
-    );
+    const ahead = path.direction * path.radius[1] * Math.cos(angle);
+    group.current.lookAt(x - path.direction * path.radius[0] * Math.sin(angle) - path.slide * ahead, y, z + ahead);
   });
 
   return (

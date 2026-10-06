@@ -9,7 +9,8 @@
 //   [data-rule="top"]        its top hairline draws in from the left
 //   [data-rule="bottom"]     its bottom hairline draws in, once that edge is on screen
 //   .count-on-view           a figure that counts up from zero when first seen
-//   [data-parallax]          the hero content, which trails the page slightly
+//   [data-parallax]          the hero text, which rises a little faster than
+//                            the scene behind it, so the scene sits further back
 //
 // Everything is triggered by IntersectionObserver and happens once. Elements
 // that arrive together are staggered in document order, so a section comes
@@ -21,10 +22,10 @@ import { useEffect } from 'react';
 const REVEALS = '[data-reveal], [data-reveal-rows] > *';
 const MAX_STAGGER_STEPS = 8;
 const STAGGER_MS = { block: 60, row: 50, rule: 80 };
-// The hero content moves down by this share of the scroll, up to the limit,
-// which makes it leave the screen a little slower than the page.
+// The hero text moves up by this share of the scroll, up to the limit, on top
+// of the page's own scrolling. The scene behind it moves with the page.
 const PARALLAX_RATE = 0.12;
-const PARALLAX_LIMIT_PX = 48;
+const PARALLAX_LIMIT_PX = 72;
 // Fine enough steps that a tall section's bottom edge is caught as it arrives.
 const EDGE_THRESHOLDS = Array.from({ length: 21 }, (_, i) => i / 20);
 
@@ -103,7 +104,7 @@ export default function ScrollMotion() {
       function drift() {
         frame = 0;
         const y = Math.min(PARALLAX_LIMIT_PX, window.scrollY * PARALLAX_RATE);
-        hero.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
+        hero.style.transform = `translate3d(0, ${(-y).toFixed(1)}px, 0)`;
       }
       function onScroll() {
         if (!frame) frame = requestAnimationFrame(drift);
