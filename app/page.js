@@ -390,6 +390,13 @@ export default async function Home() {
               review instead. The instructor and trainee views are a
               switch for the same reason: they decide what is shown, not what is permitted.
             </p>
+            <p data-reveal className="mt-3 max-w-prose text-body">
+              One consequence is worth naming. Identity here is a view switch, not an access
+              control: nothing stops a trainee from running a session under another name. For a
+              system an instructor makes decisions from, the record has to be trustworthy, so a
+              deployment would bind each session to an authenticated identity drawn from the
+              unit&apos;s own system — not from a second login maintained here.
+            </p>
           </div>
         </section>
       </main>
