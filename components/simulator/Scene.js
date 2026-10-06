@@ -15,9 +15,10 @@ import { useReducedMotion } from '@/lib/useReducedMotion';
 const BASE_FOV = 60;
 const MIN_HALF_WIDTH = 33 * Math.PI / 180;
 
-export function ObserverCamera({ pitch = 0.2, height = 12 }) {
+// halfWidth: how far either side of centre must stay in view, in radians.
+export function ObserverCamera({ pitch = 0.2, height = 12, halfWidth = MIN_HALF_WIDTH }) {
   const aspect = useThree((state) => state.size.width / state.size.height);
-  const needed = 2 * Math.atan(Math.tan(MIN_HALF_WIDTH) / aspect) * 180 / Math.PI;
+  const needed = 2 * Math.atan(Math.tan(halfWidth) / aspect) * 180 / Math.PI;
   return (
     <PerspectiveCamera
       makeDefault

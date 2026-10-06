@@ -1,12 +1,13 @@
 'use client';
 
-// The landing page's live view: the simulator's own scene, with one contact
-// of each type drifting on a slow loop. Nothing here is interactive and
-// nothing is scored. It renders only while it is on screen and the tab is
-// showing.
+// The landing page's hero background: the simulator's own scene, edge to
+// edge, with one contact of each type drifting on a slow loop. Nothing here
+// is interactive and nothing is scored. It renders only while it is on screen
+// and the tab is showing, and it drops its resolution if frames run slow.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
+import { PerformanceMonitor } from '@react-three/drei';
 import Environment from '@/components/simulator/Environment';
 import { MODELS, ObserverCamera } from '@/components/simulator/Scene';
 import { useReducedMotion } from '@/lib/useReducedMotion';
@@ -20,10 +21,12 @@ const PITCH = 0.42;
 // observer and goes away again and its size visibly changes. They stay well
 // inside the view at every window shape, with room for the camera's drift.
 // light: the colour of the contact's navigation light.
+// narrowAltitude: height flown on a narrow screen, where one is needed to
+// keep the contact in the band of sky above the text.
 const PATHS = [
-  { type: 'quad_recon', centre: [2, -112], radius: [20, 58], altitude: 36, period: 52, phase: 0.4, direction: 1, light: '#ff4a3d' },
-  { type: 'fixedwing_kamikaze', centre: [-16, -195], radius: [36, 105], altitude: 72, period: 68, phase: 2.6, direction: -1, light: '#3ddc84' },
-  { type: 'decoy_civilian', centre: [15, -88], radius: [11, 38], altitude: 17, period: 44, phase: 4.4, direction: 1, light: '#ff4a3d' },
+  { type: 'quad_recon', centre: [2, -112], radius: [16, 58], altitude: 36, period: 52, phase: 0.4, direction: 1, light: '#ff4a3d' },
+  { type: 'fixedwing_kamikaze', centre: [-8, -195], radius: [30, 105], altitude: 66, period: 68, phase: 2.6, direction: -1, light: '#3ddc84' },
+  { type: 'decoy_civilian', centre: [14, -88], radius: [10, 38], altitude: 17, narrowAltitude: 28, period: 44, phase: 4.4, direction: 1, light: '#ff4a3d' },
 ];
 
 // The camera drifts a few metres from side to side, always looking at a
@@ -31,14 +34,54 @@ const PATHS = [
 // ground. That parallax is most of what makes the view read as deep.
 const DRIFT = { metres: 5, seconds: 46, lookAhead: 110 };
 
-function CameraDrift({ still }) {
-  useFrame(({ camera, clock }) => {
+// The text sits over the scene, so the scene keeps out of its way.
+//   wide    the text holds the left of the frame: the camera looks off-axis,
+//           which slides the whole scene to the right without distorting it
+//   narrow  the text holds the bottom, and only a band of sky above it is
+//           free. The loops are pulled in (less sideways, much less depth) so
+//           the contacts keep to a thin band of elevation, and the camera is
+//           pitched so that band sits just under the nav.
+const DEG = Math.PI / 180;
+const FRAMING = {
+  wide: { pitch: PITCH, shift: 0.24, halfWidth: 33 * DEG, spread: 1, depth: 1 },
+  narrow: { shift: 0, halfWidth: 20 * DEG, spread: 0.6, depth: 0.3, bandTop: { elevation: 24.5 * DEG, at: 0.1 } },
+};
+
+// The loop a contact flies under this framing.
+function framed(path, framing) {
+  const { spread, depth } = FRAMING[framing];
+  return {
+    ...path,
+    centre: [path.centre[0] * spread, path.centre[1]],
+    radius: [path.radius[0] * spread, path.radius[1] * depth],
+    altitude: framing === 'narrow' ? path.narrowAltitude ?? path.altitude : path.altitude,
+  };
+}
+
+function HeroCamera({ framing, still }) {
+  const { shift, halfWidth, bandTop } = FRAMING[framing];
+
+  useFrame(({ camera, clock, size }) => {
     const x = still ? 0 : Math.sin((clock.elapsedTime / DRIFT.seconds) * Math.PI * 2) * DRIFT.metres;
+    // narrow: whatever the field of view, put the top of the contacts' band a tenth of the way down
+    const pitch = bandTop
+      ? bandTop.elevation - Math.atan((1 - 2 * bandTop.at) * Math.tan((camera.fov * DEG) / 2))
+      : FRAMING[framing].pitch;
     camera.position.x = x;
     camera.rotation.order = 'YXZ';  // turn about the vertical first, then pitch
-    camera.rotation.set(PITCH, Math.atan2(x, DRIFT.lookAhead), 0);
+    camera.rotation.set(pitch, Math.atan2(x, DRIFT.lookAhead), 0);
+
+    // Off-axis view: only touched when the frame or the framing changes.
+    const offset = -Math.round(size.width * shift);
+    const view = camera.view;
+    const current = view && view.enabled ? view.offsetX : 0;
+    if (current !== offset || (view && view.enabled && (view.fullWidth !== size.width || view.fullHeight !== size.height))) {
+      if (offset === 0) camera.clearViewOffset();
+      else camera.setViewOffset(size.width, size.height, offset, 0, size.width, size.height);
+    }
   });
-  return null;
+
+  return <ObserverCamera pitch={PITCH} height={2} halfWidth={halfWidth} />;
 }
 
 // A navigation light: a small soft point that pulses about once a second.
@@ -103,8 +146,24 @@ function Drifter({ path, still }) {
   );
 }
 
+// The page lays the text out on the left from this width up, and along the
+// bottom below it; the camera framing follows the same switch.
+const WIDE_LAYOUT = '(min-width: 64rem)';
+
+function subscribeToLayout(onChange) {
+  const query = window.matchMedia(WIDE_LAYOUT);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
+
+// Render scale: up to 2 device pixels per CSS pixel, stepping down if the
+// frame rate falls rather than dropping anything from the scene.
+const DPR_STEPS = [2, 1.5, 1];
+
 export default function AmbientSky() {
   const wrapper = useRef(null);
+  const wide = useSyncExternalStore(subscribeToLayout, () => window.matchMedia(WIDE_LAYOUT).matches, () => true);
+  const [dprStep, setDprStep] = useState(0);
   const [onScreen, setOnScreen] = useState(true);
   const [tabShowing, setTabShowing] = useState(true);
   const still = useReducedMotion();
@@ -123,12 +182,12 @@ export default function AmbientSky() {
 
   return (
     <div ref={wrapper} aria-hidden="true" className="pointer-events-none absolute inset-0">
-      <Canvas dpr={[1, 1.5]} frameloop={still ? 'demand' : onScreen && tabShowing ? 'always' : 'never'}>
-        <ObserverCamera pitch={PITCH} height={2} />
-        <CameraDrift still={still} />
+      <Canvas dpr={[1, DPR_STEPS[dprStep]]} frameloop={still ? 'demand' : onScreen && tabShowing ? 'always' : 'never'}>
+        <PerformanceMonitor onDecline={() => setDprStep((step) => Math.min(step + 1, DPR_STEPS.length - 1))} />
+        <HeroCamera framing={wide ? 'wide' : 'narrow'} still={still} />
         <Environment lighting="day" still={still} />
         {PATHS.map((path) => (
-          <Drifter key={path.phase} path={path} still={still} />
+          <Drifter key={path.phase} path={framed(path, wide ? 'wide' : 'narrow')} still={still} />
         ))}
       </Canvas>
     </div>

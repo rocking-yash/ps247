@@ -64,6 +64,46 @@ html:not([data-role='trainee']) [data-trainee-only] {
   }
 }
 
+/* Landing hero: text over the live scene. The scrim is the page's own
+   surface colour, nearly opaque wherever text sits and gone beyond it, so
+   the text keeps its contrast whatever is behind it.
+   - narrow screens: the text block is along the bottom, and the scrim rises
+     behind it and fades out above it
+   - from 64rem: the text column is on the left, and the scrim runs the full
+     height from the left edge to just past the column, then fades */
+.hero-copy {
+  position: relative;
+}
+
+.hero-copy::before {
+  content: '';
+  position: absolute;
+  inset: -4rem 0 0;
+  background: linear-gradient(to top, rgb(255 255 255 / 0.95) calc(100% - 4rem), rgb(255 255 255 / 0));
+  pointer-events: none;
+}
+
+.hero-scrim {
+  display: none;
+}
+
+@media (min-width: 64rem) {
+  .hero-copy::before {
+    display: none;
+  }
+
+  .hero-scrim {
+    display: block;
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    /* page gutter + column padding + the 28rem text column, then a 10rem fade */
+    width: calc(max(0px, (100vw - 72rem) / 2) + 1.5rem + 28rem + 10rem);
+    background: linear-gradient(to right, rgb(255 255 255 / 0.95) calc(100% - 10rem), rgb(255 255 255 / 0));
+    pointer-events: none;
+  }
+}
+
 /* Landing page scroll motion. components/landing/ScrollMotion.js adds
    .reveal-ready (never with reduced motion), then marks each element as it
    first enters the viewport. Until then it sits 16px low and transparent. */

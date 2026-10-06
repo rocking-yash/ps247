@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function DashboardLayout({ children }) {
   return (
-    <div className="mx-auto w-full min-w-0 max-w-5xl flex-1 px-6 pb-16">
+    <div className="mx-auto w-full min-w-0 max-w-6xl flex-1 px-6 pb-16">
       <header className="flex items-baseline justify-between gap-6 border-b border-rule py-4">
         <Link href="/dashboard" className="text-base font-bold tracking-tight link-wipe">
           <span data-instructor-only>Instructor dashboard</span>

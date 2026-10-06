@@ -1,8 +1,8 @@
 'use client';
 
 // Fixed landing-page nav. Three things follow the scroll position: the bar is
-// clear at the very top and takes a solid ground with a hairline as soon as
-// the page scrolls under it; the link for the section being read is marked; and a 2px
+// clear over the hero's scene, with ink links, and takes a solid ground with
+// a hairline once the hero has passed; the link for the section being read is marked; and a 2px
 // bar along the very top fills as the page is read.
 
 import { useEffect, useRef, useState } from 'react';
@@ -22,8 +22,7 @@ export default function SiteNav({ sections }) {
 
     function measure() {
       frame = 0;
-      // Solid as soon as anything has scrolled under the bar.
-      const pastHero = window.scrollY > 8;
+      const pastHero = document.getElementById('top').getBoundingClientRect().bottom <= NAV_HEIGHT;
 
       const line = Math.max(NAV_HEIGHT + 24, window.innerHeight * READING_LINE);
       let reading = null;
@@ -85,7 +84,7 @@ export default function SiteNav({ sections }) {
                 key={href}
                 href={href}
                 aria-current={active ? 'location' : undefined}
-                className={active ? 'link-wipe font-medium' : 'link-wipe text-body'}
+                className={active ? 'link-wipe font-medium' : onPaper ? 'link-wipe text-body' : 'link-wipe'}
               >
                 {label}
               </a>

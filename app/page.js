@@ -67,8 +67,8 @@ const WRAP = "mx-auto w-full max-w-6xl px-6";
 const H2 = "text-3xl font-bold tracking-tight sticky top-14 z-10 bg-paper before:absolute before:inset-x-0 before:-inset-y-3 before:-z-10 before:bg-paper before:content-['']";
 const LEAD = "mt-3 max-w-prose text-lg text-body";
 const CARD = "card-hover rounded-xl border border-rule bg-paper p-6";
-const PRIMARY = "press bg-accent px-5 py-2.5 font-medium text-white";
-const SECONDARY = "press border border-rule bg-paper px-5 py-2.5 font-medium";
+const PRIMARY = "press bg-accent px-4 py-2.5 font-medium text-white sm:px-5";
+const SECONDARY = "press border border-rule bg-paper px-4 py-2.5 font-medium sm:px-5";
 
 // Four things the page goes on to show, in a strip under the hero.
 const AT_A_GLANCE = [
@@ -111,47 +111,46 @@ export default async function Home() {
       <ScrollMotion />
 
       <main>
-        <section id="top" className="pt-14">
-          <div className={`${WRAP} grid gap-10 py-14 sm:py-20 lg:grid-cols-[0.82fr_1.18fr] lg:items-stretch lg:gap-12`}>
-            <div data-parallax className="lg:self-center">
-              <h1 className="resolve text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl sm:leading-[1.06] lg:text-6xl lg:leading-[1.04]">
-                Counter-drone training that grades the <span className="text-accent">decision</span>, not
-                the aim.
-              </h1>
-              <p className="resolve mt-6 max-w-xl text-lg text-body" style={{ "--step": 1 }}>
-                A browser exercise in detecting, classifying and responding to drone contacts. Every
-                decision is scored and kept for after-action review.
-              </p>
-              <div className="resolve mt-8 flex flex-wrap gap-3" style={{ "--step": 2 }}>
-                <Link href="/simulator" className={PRIMARY}>
-                  Run a session
-                </Link>
-                <Link href="/dashboard" className={SECONDARY}>
-                  Review performance
-                </Link>
+        {/* Hero: the simulator's own scene, edge to edge, with the text over it.
+            A scrim in the page's surface colour sits between them wherever
+            the text is (hero-scrim and hero-copy in globals.css). */}
+        <section id="top" className="relative flex min-h-[85vh] flex-col justify-end overflow-hidden bg-tint pt-48 lg:justify-center lg:pt-0">
+          <AmbientSky />
+          <div aria-hidden="true" className="hero-scrim" />
+          <div className="hero-copy pb-12 pt-6 lg:pb-16 lg:pt-28">
+            <div className={WRAP}>
+              <div data-parallax className="relative lg:max-w-[28rem]">
+                <h1 className="resolve text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl sm:leading-[1.06] lg:text-6xl lg:leading-[1.04]">
+                  Counter-drone training that grades the <span className="text-accent">decision</span>, not
+                  the aim.
+                </h1>
+                <p className="resolve mt-6 max-w-xl text-lg text-body" style={{ "--step": 1 }}>
+                  A browser exercise in detecting, classifying and responding to drone contacts. Every
+                  decision is scored and kept for after-action review.
+                </p>
+                <div className="resolve mt-8 flex flex-wrap gap-3" style={{ "--step": 2 }}>
+                  <Link href="/simulator" className={PRIMARY}>
+                    Run a session
+                  </Link>
+                  <Link href="/dashboard" className={SECONDARY}>
+                    Review performance
+                  </Link>
+                </div>
               </div>
             </div>
-
-            {/* The simulator's own scene, running live. No photograph could stand in for it. */}
-            <figure className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-rule bg-sky lg:aspect-auto lg:min-h-[32rem]">
-              <AmbientSky />
-              <figcaption className="absolute bottom-3 left-3 rounded-md bg-ink/75 px-2.5 py-1 text-sm text-white">
-                Live view from the simulator
-              </figcaption>
-            </figure>
-          </div>
-
-          <div className={`${WRAP} pb-16`}>
-            <ul className="grid gap-x-8 gap-y-5 rounded-2xl bg-tint px-6 py-6 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-rule lg:gap-x-0">
-              {AT_A_GLANCE.map(([title, text]) => (
-                <li key={title} className="lg:px-6 lg:first:pl-0 lg:last:pr-0">
-                  <p className="font-semibold">{title}</p>
-                  <p className="mt-1 text-sm text-body">{text}</p>
-                </li>
-              ))}
-            </ul>
           </div>
         </section>
+
+        <div className={`${WRAP} py-16`}>
+          <ul className="grid gap-x-8 gap-y-5 rounded-2xl bg-tint px-6 py-6 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-rule lg:gap-x-0">
+            {AT_A_GLANCE.map(([title, text]) => (
+              <li key={title} className="lg:px-6 lg:first:pl-0 lg:last:pr-0">
+                <p className="font-semibold">{title}</p>
+                <p className="mt-1 text-sm text-body">{text}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
 
         <section id="skills" data-rule="bottom" className={SECTION}>
           <div className={WRAP}>

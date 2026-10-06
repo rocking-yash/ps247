@@ -9,7 +9,7 @@ export const TD = 'border-b border-rule py-3.5 pr-5 align-baseline';
 
 // Tick or cross beside a graded answer. The colour repeats what the shape
 // and the hidden text already say.
-function Mark({ ok }) {
+export function Mark({ ok }) {
   return (
     <>
       <svg
@@ -27,7 +27,7 @@ function Mark({ ok }) {
   );
 }
 
-function Graded({ label, ok }) {
+export function Graded({ label, ok }) {
   if (!label) return <span className="text-body/70">Not reached</span>;
   return (
     <>

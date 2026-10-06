@@ -107,6 +107,12 @@ export default async function DashboardPage() {
         </table>
       </div>
 
+      <p className="mt-6">
+        <Link href="/dashboard/sessions" className="link-wipe font-medium text-accent">
+          View all sessions
+        </Link>
+      </p>
+
       <h2 className="mt-16 text-3xl font-bold tracking-tight">Trainees</h2>
       <p className="mt-1 max-w-prose text-sm text-body">
 Grouped by unit. Average composite score is out of 100 and covers completed sessions only.

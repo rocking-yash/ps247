@@ -47,6 +47,9 @@ function SessionGroup({ session }) {
             </span>
             <span className="capitalize">{session.conditions.lighting}</span>
             {!session.completed && <span>Not completed</span>}
+            <Link href={`/dashboard/sessions/${session._id}`} className="no-print link-wipe text-accent">
+              Full breakdown
+            </Link>
             {replayable ? (
               <Link
                 href={`/simulator?replay=${session._id}`}
@@ -162,6 +165,11 @@ export default async function TraineePage({ params }) {
 
       <section className="mt-12">
         <h2 className="text-lg font-semibold">Verdicts</h2>
+        <p className="mt-1 text-sm">
+          <Link href={`/dashboard/sessions?trainee=${trainee._id}`} className="no-print link-wipe font-medium text-accent">
+            View all of {fullName(trainee)}&apos;s sessions
+          </Link>
+        </p>
         <p className="mt-1 max-w-prose text-sm text-body">
           Every contact the trainee faced, latest session first.
           {earlier.length > 0 && ` The ${recent.length} most recent sessions are shown; earlier ones open below.`}
