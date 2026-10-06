@@ -1,21 +1,26 @@
 import { Fragment } from 'react';
 import Link from 'next/link';
 import TraineeHome from '@/components/dashboard/TraineeHome';
-import { listTrainees, listUnits } from '@/lib/dashboard';
+import { listScripts, listTrainees, listUnits } from '@/lib/dashboard';
+import Disclosure from '@/components/Disclosure';
+import ScenarioBuilder from '@/components/dashboard/ScenarioBuilder';
+import { AssignScenario } from '@/components/dashboard/ScenarioActions';
+import { describeScript } from '@/lib/scripted';
 import { nextAssignment } from '@/lib/assignment';
 import AssignmentControls from '@/components/dashboard/AssignmentControls';
 import { NextSession, SystemRecommends } from '@/components/dashboard/Recommendation';
 import Count from '@/components/Count';
 import { SKILL_LABELS } from '@/lib/units';
 import { formatDateTime, fullName } from '@/lib/format';
-import { detectionLimits } from '@/lib/constants';
+import { APPROACH_LABELS, DRONE_LABELS, TERRAIN_LABELS, describeConditions, detectionLimits } from '@/lib/constants';
 
 // "3 s to 13 s rather than 2 s to 10 s", from the scoring constants.
-const limits = (lighting) => {
-  const { fullMs, zeroMs } = detectionLimits(lighting);
+const limits = (conditions) => {
+  const { fullMs, zeroMs } = detectionLimits(conditions);
   return `${fullMs / 1000} s to ${zeroMs / 1000} s`;
 };
 const nightLimits = `${limits('night')} rather than ${limits('day')}`;
+const urbanLimits = limits({ lighting: 'day', terrain: 'urban' });
 
 // Reads live session data — never prerender at build time.
 export const dynamic = 'force-dynamic';
@@ -37,12 +42,16 @@ function SkillCell({ unit, skill }) {
 }
 
 export default async function DashboardPage() {
-  const [units, trainees] = await Promise.all([listUnits(), listTrainees()]);
+  const [units, trainees, scripts] = await Promise.all([listUnits(), listTrainees(), listScripts()]);
   const unitNames = [...new Set(trainees.map((t) => t.unit))];
   // What each trainee's next session will be, and how that was arrived at.
   const assignments = await Promise.all(
-    trainees.map((t) => nextAssignment({ _id: t.id, baseLevel: t.baseLevel, lightingChoice: t.lightingChoice })),
+    trainees.map((t) => nextAssignment({
+      _id: t.id, baseLevel: t.baseLevel, lightingChoice: t.lightingChoice, terrainChoice: t.terrainChoice,
+      assignedScenario: t.assignedScenario,
+    })),
   );
+  const pickable = trainees.map((t) => ({ id: t.id, name: fullName(t), unit: t.unit }));
 
   return (
     <>
@@ -161,12 +170,87 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
         </table>
       </div>
 
+      <h2 className="mt-16 text-3xl font-bold tracking-tight">Scripted scenarios</h2>
+      <p className="mt-1 max-w-prose text-sm text-body">
+        A scripted scenario is a fixed sequence of contacts that you write. Everyone assigned it
+        faces the identical exercise, so their results can be compared directly. Assign one to a
+        trainee or a whole unit and it runs as their next session, once; without one, sessions
+        are generated from a fresh seed as before.
+      </p>
+
+      <div className="relative mt-6 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
+        <table className="w-full min-w-[60rem] text-left">
+          <thead>
+            <tr>
+              <th className={TH}>Scenario</th>
+              <th className={TH}>Contacts, in order</th>
+              <th className={TH}>Assigned to</th>
+              <th className={`${TH} pr-0`}>Assign</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scripts.map((script) => {
+              const assigned = trainees.filter((t) => t.assignedScenario === script.id);
+              return (
+                <tr key={script.id} className="row-hover">
+                  <th scope="row" className={`${TD} align-top font-medium`}>
+                    {script.name}
+                    <span className="block text-sm font-normal text-body">
+                      Level {script.level}, {describeConditions(script)}
+                    </span>
+                    <span className="block text-sm font-normal text-body">{describeScript(script)}</span>
+                  </th>
+                  <td className={`${TD} align-top text-sm`}>
+                    <ol>
+                      {script.contacts.map((contact, i) => (
+                        <li key={i} className="whitespace-nowrap">
+                          T+{+(contact.spawnTime / 1000).toFixed(1)} s, {DRONE_LABELS[contact.droneType]},{' '}
+                          {APPROACH_LABELS[contact.approach].toLowerCase()}
+                        </li>
+                      ))}
+                    </ol>
+                  </td>
+                  <td className={`${TD} align-top text-sm`}>
+                    {assigned.length === 0 ? (
+                      <span className="text-body">No one</span>
+                    ) : (
+                      <ul>
+                        {assigned.map((t) => (
+                          <li key={t.id} className="whitespace-nowrap">{fullName(t)}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
+                  <td className={`${TD} pr-0 align-top`}>
+                    <AssignScenario scenarioId={script.id} scenarioName={script.name} units={unitNames} trainees={pickable} />
+                  </td>
+                </tr>
+              );
+            })}
+            {scripts.length === 0 && (
+              <tr>
+                <td className={`${TD} pr-0`} colSpan={4}>
+                  No scripted scenarios yet. Write one below, or run `npm run seed` to add the three examples.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-6">
+        <Disclosure closedLabel="Write a new scenario" openLabel="Close the new scenario form">
+          <ScenarioBuilder />
+        </Disclosure>
+      </div>
+
       <h2 className="mt-16 text-3xl font-bold tracking-tight">Difficulty and conditions</h2>
       <p className="mt-1 max-w-prose text-sm text-body">
-        Set each trainee&apos;s base level and lighting; the trainee cannot change either. The
+        Set each trainee&apos;s base level, lighting and terrain; the trainee cannot change them. The
         system then recommends a level from their recent scores. The base level is the floor: the
-        next session runs at whichever is higher. Night is harder to see in, so detection is scored on looser limits there
-        ({nightLimits}), and a night session is not marked down for the condition.
+        next session runs at whichever is higher, unless a scripted scenario is assigned, which
+        runs in its place. Night is harder to see in, so detection is scored on looser limits there
+        ({nightLimits}), and a night session is not marked down for the condition. In urban terrain buildings hide a contact for part of its run, so its detection clock starts when it first comes into sight and the limits are looser again ({urbanLimits} by day).
       </p>
 
       <div className="relative mt-6 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
@@ -192,16 +276,17 @@ Grouped by unit. Average composite score is out of 100 and covers completed sess
                     traineeName={fullName(trainee)}
                     baseLevel={assignments[i].baseLevel}
                     lightingChoice={assignments[i].lightingChoice}
+                    terrainChoice={assignments[i].terrainChoice}
                   />
                   <span className="hidden text-sm print:block">
-                    Base level {assignments[i].baseLevel}, {assignments[i].lightingChoice}
+                    Base level {assignments[i].baseLevel}, {assignments[i].lightingChoice}, {TERRAIN_LABELS[assignments[i].terrainChoice].toLowerCase()}
                   </span>
                 </td>
                 <td className={`${TD} align-top`}>
                   <SystemRecommends next={assignments[i]} />
                 </td>
                 <td className={`${TD} pr-0 align-top`}>
-                  <NextSession next={assignments[i]} />
+                  <NextSession next={assignments[i]} trainee={{ id: trainee.id, name: fullName(trainee) }} />
                 </td>
               </tr>
             ))}

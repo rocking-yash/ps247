@@ -2,7 +2,7 @@
 // each is matched on rank, name and unit and only created if missing, so
 // nothing is duplicated and no existing record or session is touched.
 //
-//   npm run seed
+//   npm run seed      (also runs seed-scenarios.cjs)
 //
 // The names are invented. Reads MONGODB_URI from .env.local.
 
@@ -48,7 +48,7 @@ async function main() {
     const result = await users.updateOne(
       { role: 'trainee', ...trainee },
       // Field defaults match UserSchema in lib/models.js.
-      { $setOnInsert: { baseLevel: 2, lightingChoice: 'alternate', createdAt: new Date() } },
+      { $setOnInsert: { baseLevel: 2, lightingChoice: 'alternate', terrainChoice: 'rural', createdAt: new Date() } },
       { upsert: true },
     );
     console.log(`${result.upsertedCount ? 'created' : 'exists '}  ${trainee.rank} ${trainee.name}, ${trainee.unit}`);

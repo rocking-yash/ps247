@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import SessionsTable from '@/components/dashboard/SessionsTable';
 import { listSessions } from '@/lib/dashboard';
-import { LEVEL_UP_AT, LEVEL_DOWN_AT } from '@/lib/constants';
+import { LEVEL_UP_AT, LEVEL_DOWN_AT, SCENARIO_MODES } from '@/lib/constants';
 import { formatDateTime } from '@/lib/format';
 
 // Reads live session data — never prerender at build time.
@@ -11,11 +11,16 @@ export const metadata = {
   title: 'All sessions — Counter-Drone Trainer',
 };
 
-// /dashboard/sessions lists every session. ?unit=, ?trainee=<id> and
-// ?lighting=day|night open it already filtered.
+// /dashboard/sessions lists every session. ?unit=, ?trainee=<id>,
+// ?lighting=day|night and ?mode=procedural|scripted open it already filtered.
 export default async function SessionsPage({ searchParams }) {
   const query = await searchParams;
-  const sessions = (await listSessions()).map((s) => ({ ...s, dateLabel: formatDateTime(s.startedAt) }));
+  const sessions = (await listSessions()).map((s) => ({
+    ...s,
+    dateLabel: formatDateTime(s.startedAt),
+    // what the Scenario column shows and sorts by
+    scenario: s.mode === 'scripted' ? `Scripted: ${s.scenarioName}` : 'Procedural',
+  }));
 
   const units = [...new Set(sessions.map((s) => s.unit))].sort();
   const seen = new Map(sessions.map((s) => [s.traineeId, s.trainee]));
@@ -26,6 +31,7 @@ export default async function SessionsPage({ searchParams }) {
     unit: units.includes(query.unit) ? query.unit : '',
     trainee: seen.has(query.trainee) ? query.trainee : '',
     lighting: query.lighting === 'day' || query.lighting === 'night' ? query.lighting : '',
+    mode: SCENARIO_MODES.includes(query.mode) ? query.mode : '',
   };
 
   return (
@@ -45,7 +51,8 @@ export default async function SessionsPage({ searchParams }) {
         <h1 className="mt-3 text-3xl font-bold tracking-tight">All sessions</h1>
         <p className="mt-1 max-w-prose text-sm text-body">
           Every session across all trainees, one row each. Select a column heading to sort by it,
-          and a row to open its full breakdown. The three skills are out of 100. Composite is
+          and a row to open its full breakdown. Scenario says whether the contacts were scripted
+          by an instructor or generated from a seed. The three skills are out of 100. Composite is
           tinted green at {LEVEL_UP_AT} or above and red at {LEVEL_DOWN_AT} or below, the same
           thresholds the adaptive difficulty uses.
         </p>

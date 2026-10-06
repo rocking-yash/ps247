@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Billboard, PerspectiveCamera } from '@react-three/drei';
 import Environment, { CONDITIONS, useBlobTexture } from './Environment';
 import { contactState } from '@/lib/scenario';
+import { EYE_HEIGHT } from '@/lib/terrain';
 import { useReducedMotion } from '@/lib/useReducedMotion';
 
 // Fixed observation post, 12 m up and pitched ~11° above level, so the whole
@@ -16,7 +17,7 @@ const BASE_FOV = 60;
 const MIN_HALF_WIDTH = 33 * Math.PI / 180;
 
 // halfWidth: how far either side of centre must stay in view, in radians.
-export function ObserverCamera({ pitch = 0.2, height = 12, halfWidth = MIN_HALF_WIDTH }) {
+export function ObserverCamera({ pitch = 0.2, height = EYE_HEIGHT, halfWidth = MIN_HALF_WIDTH }) {
   const aspect = useThree((state) => state.size.width / state.size.height);
   const needed = 2 * Math.atan(Math.tan(halfWidth) / aspect) * 180 / Math.PI;
   return (
@@ -235,13 +236,13 @@ function Contact({ contact, status, active, silhouette, shadowOpacity, getElapse
 }
 
 // statuses: one per contact, same order as scenario.drones
-export default function Scene({ scenario, lighting = 'day', statuses, activeIndex, getElapsed, onDetect, onEnd }) {
+export default function Scene({ scenario, lighting = 'day', terrain = 'rural', statuses, activeIndex, getElapsed, onDetect, onEnd }) {
   const light = CONDITIONS[lighting] ?? CONDITIONS.day;
   const still = useReducedMotion();
   return (
     <Canvas dpr={[1, 1.5]}>
       <ObserverCamera />
-      <Environment lighting={lighting} still={still} />
+      <Environment lighting={lighting} terrain={terrain} still={still} />
       {scenario?.drones.map((contact, i) => (
         <Contact
           key={`${scenario.seed}-${i}`}

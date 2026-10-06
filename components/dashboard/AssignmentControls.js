@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { TERRAIN, TERRAIN_LABELS } from '@/lib/constants';
 
 const LIGHTING_OPTIONS = [
   ['alternate', 'Alternate day and night'],
@@ -11,15 +12,16 @@ const LIGHTING_OPTIONS = [
 
 const FIELD = 'rounded-lg border border-rule bg-paper px-2 py-1.5';
 
-// Instructor controls for one trainee: base difficulty level and lighting.
+// Instructor controls for one trainee: base difficulty level, lighting and terrain.
 // Nothing is saved until "Set" is pressed.
-export default function AssignmentControls({ traineeId, traineeName, baseLevel, lightingChoice }) {
+export default function AssignmentControls({ traineeId, traineeName, baseLevel, lightingChoice, terrainChoice }) {
   const router = useRouter();
   const [level, setLevel] = useState(baseLevel);
   const [lighting, setLighting] = useState(lightingChoice);
+  const [terrain, setTerrain] = useState(terrainChoice);
   const [status, setStatus] = useState('idle'); // idle | saving | saved | failed
 
-  const changed = level !== baseLevel || lighting !== lightingChoice;
+  const changed = level !== baseLevel || lighting !== lightingChoice || terrain !== terrainChoice;
 
   async function submit(e) {
     e.preventDefault();
@@ -28,7 +30,7 @@ export default function AssignmentControls({ traineeId, traineeName, baseLevel, 
       const res = await fetch(`/api/trainees/${traineeId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ baseLevel: level, lightingChoice: lighting }),
+        body: JSON.stringify({ baseLevel: level, lightingChoice: lighting, terrainChoice: terrain }),
       });
       if (!res.ok) throw new Error();
       setStatus('saved');
@@ -72,6 +74,24 @@ export default function AssignmentControls({ traineeId, traineeName, baseLevel, 
           {LIGHTING_OPTIONS.map(([value, label]) => (
             <option key={value} value={value}>
               {label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex items-center gap-2">
+        <span>Terrain</span>
+        <select
+          aria-label={`Terrain for ${traineeName}`}
+          value={terrain}
+          onChange={(e) => {
+            setTerrain(e.target.value);
+            setStatus('idle');
+          }}
+          className={FIELD}
+        >
+          {TERRAIN.toReversed().map((value) => (
+            <option key={value} value={value}>
+              {TERRAIN_LABELS[value]}
             </option>
           ))}
         </select>

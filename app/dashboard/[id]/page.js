@@ -1,37 +1,35 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ScoreTrend from '@/components/dashboard/ScoreTrend';
-import { getTraineeDetail } from '@/lib/dashboard';
+import { getTraineeDetail, listScripts } from '@/lib/dashboard';
 import EventRow, { EventTableHead, TD } from '@/components/dashboard/EventRow';
 import AssignmentControls from '@/components/dashboard/AssignmentControls';
 import { NextSession, SystemRecommends } from '@/components/dashboard/Recommendation';
 import Count from '@/components/Count';
 import Disclosure from '@/components/Disclosure';
 import { nextAssignment } from '@/lib/assignment';
-import { scenarioMatchesEvents } from '@/lib/scenario';
+import { sessionReplayable } from '@/lib/scenario';
 import { SKILL_NAMES } from '@/lib/weakness';
 import { VERDICT_LABELS, LEVEL_UP_AT, LEVEL_DOWN_AT } from '@/lib/constants';
 import { formatDateTime, fullName } from '@/lib/format';
-import { detectionLimits } from '@/lib/constants';
+import { describeConditions, detectionLimits } from '@/lib/constants';
 
-const limits = (lighting) => {
-  const { fullMs, zeroMs } = detectionLimits(lighting);
+const limits = (conditions) => {
+  const { fullMs, zeroMs } = detectionLimits(conditions);
   return `${fullMs / 1000} s to ${zeroMs / 1000} s`;
 };
 const nightLimits = `${limits('night')} rather than ${limits('day')}`;
+const urbanLimits = limits({ lighting: 'day', terrain: 'urban' });
 
 // Sessions shown before the rest are folded away under a disclosure.
 const RECENT_SESSIONS = 5;
 
 // One session in the verdict table: its header line, then a row per contact.
-function SessionGroup({ session }) {
-  // Rebuilt from the stored seed and level and checked against the record.
-  const replayable = scenarioMatchesEvents(
-    session.scenarioSeed,
-    session.difficulty.level,
-    session.events,
-    session.difficulty.focus ?? null,
-  );
+// script: the scripted scenario it ran, if it was scripted and that still exists.
+function SessionGroup({ session, script }) {
+  // Rebuilt from the stored seed and level (or the script) and checked against the record.
+  const replayable = sessionReplayable(session, script);
+  const scripted = session.scenario?.mode === 'scripted';
 
   return (
     <tbody>
@@ -45,7 +43,8 @@ function SessionGroup({ session }) {
               {session.difficulty.setBy === 'adaptive' && ', adaptive'}
               {session.difficulty.focus && `, ${SKILL_NAMES[session.difficulty.focus].toLowerCase()} practice`}
             </span>
-            <span className="capitalize">{session.conditions.lighting}</span>
+            <span className="capitalize">{describeConditions(session.conditions)}</span>
+            <span>{scripted ? `Scripted: ${session.scenario.name}` : 'Procedural'}</span>
             {!session.completed && <span>Not completed</span>}
             <Link href={`/dashboard/sessions/${session._id}`} className="no-print link-wipe text-accent">
               Full breakdown
@@ -58,7 +57,9 @@ function SessionGroup({ session }) {
                 Replay this scenario
               </Link>
             ) : (
-              <span className="text-body">Recorded under an earlier scenario generator</span>
+              <span className="text-body">
+                {scripted ? 'Its scripted scenario has been deleted' : 'Recorded under an earlier scenario generator'}
+              </span>
             )}
             <span className="ml-auto">
               Composite <span className="font-semibold">{session.scores.composite}</span>
@@ -89,6 +90,8 @@ export default async function TraineePage({ params }) {
 
   const { trainee } = detail;
   const next = await nextAssignment(trainee);
+  const scripts = new Map((await listScripts()).map((script) => [script.id, script]));
+  const scriptOf = (session) => scripts.get(String(session.scenario?.scriptedId)) ?? null;
   const sessions = detail.sessions.map((session, i) => ({ ...session, number: i + 1 }));
   const completed = sessions.filter((s) => s.completed);
   const avgComposite = completed.length
@@ -136,8 +139,8 @@ export default async function TraineePage({ params }) {
         <h2 className="text-lg font-semibold">Difficulty and conditions</h2>
         <p className="mt-1 max-w-prose text-sm text-body">
           The base level is the floor. The system recommends a level from recent scores, and the
-          next session runs at whichever is higher. The instructor also sets the lighting. Night
-          is harder to see in, so detection is scored on looser limits there ({nightLimits}).
+          next session runs at whichever is higher, unless a scripted scenario is assigned. The instructor also sets the lighting and the
+          terrain. Night is harder to see in, so detection is scored on looser limits there ({nightLimits}). In urban terrain buildings hide a contact for part of its run, so its detection clock starts when it first comes into sight and the limits are looser again ({urbanLimits} by day).
         </p>
         <div data-instructor-only className="mt-3">
           <AssignmentControls
@@ -145,6 +148,7 @@ export default async function TraineePage({ params }) {
             traineeName={fullName(trainee)}
             baseLevel={next.baseLevel}
             lightingChoice={next.lightingChoice}
+            terrainChoice={next.terrainChoice}
           />
         </div>
         <dl className="mt-4 grid gap-x-12 gap-y-4 sm:grid-cols-2">
@@ -157,7 +161,7 @@ export default async function TraineePage({ params }) {
           <div>
             <dt className="text-sm text-body">Next session</dt>
             <dd>
-              <NextSession next={next} />
+              <NextSession next={next} trainee={{ id: String(trainee._id), name: fullName(trainee) }} />
             </dd>
           </div>
         </dl>
@@ -179,7 +183,7 @@ export default async function TraineePage({ params }) {
           <table className="w-full min-w-[52rem] text-left">
             <EventTableHead />
             {recent.map((session) => (
-              <SessionGroup key={String(session._id)} session={session} />
+              <SessionGroup key={String(session._id)} session={session} script={scriptOf(session)} />
             ))}
             {sessions.length === 0 && (
               <tbody>
@@ -203,7 +207,7 @@ export default async function TraineePage({ params }) {
                 <table className="w-full min-w-[52rem] text-left">
                   <EventTableHead />
                   {earlier.map((session) => (
-                    <SessionGroup key={String(session._id)} session={session} />
+                    <SessionGroup key={String(session._id)} session={session} script={scriptOf(session)} />
                   ))}
                 </table>
               </div>

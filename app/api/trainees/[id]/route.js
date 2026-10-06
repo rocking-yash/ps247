@@ -1,9 +1,9 @@
 // Instructor sets what a trainee's next sessions run under: the base
-// difficulty level and the lighting.
+// difficulty level, the lighting and the terrain.
 
 import mongoose from 'mongoose';
 import { connectDB } from '@/lib/db';
-import { LIGHTING_CHOICES } from '@/lib/constants';
+import { LIGHTING_CHOICES, TERRAIN } from '@/lib/constants';
 import { User } from '@/lib/models';
 
 function badRequest(error) {
@@ -36,6 +36,12 @@ export async function PATCH(request, { params }) {
     }
     update.lightingChoice = body.lightingChoice;
   }
+  if (body?.terrainChoice !== undefined) {
+    if (!TERRAIN.includes(body.terrainChoice)) {
+      return badRequest(`terrainChoice must be one of ${TERRAIN.join(', ')}`);
+    }
+    update.terrainChoice = body.terrainChoice;
+  }
   if (Object.keys(update).length === 0) return badRequest('Nothing to change');
 
   try {
@@ -46,7 +52,9 @@ export async function PATCH(request, { params }) {
       { returnDocument: 'after', runValidators: true },
     ).lean();
     if (!trainee) return Response.json({ error: 'No such trainee' }, { status: 404 });
-    return Response.json({ id: trainee._id, baseLevel: trainee.baseLevel, lightingChoice: trainee.lightingChoice });
+    return Response.json({
+      id: trainee._id, baseLevel: trainee.baseLevel, lightingChoice: trainee.lightingChoice, terrainChoice: trainee.terrainChoice,
+    });
   } catch (err) {
     console.error('PATCH /api/trainees/[id] failed', err);
     return Response.json({ error: 'Could not save the settings' }, { status: 500 });

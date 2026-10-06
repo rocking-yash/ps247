@@ -38,7 +38,8 @@ The PS asks for "recognizing, classifying and responding". These are scored sepa
 
 - **3 drone types**: `quad_recon`, `fixedwing_kamikaze`, `decoy_civilian`
 - **3 counter-measures** + no-action: `jam`, `intercept`, `report_only`, `no_action`
-- **2 conditions**: day / night (terrain field exists but urban/rural is Phase 2)
+- **2 conditions**: day / night, and open airfield / urban terrain (urban was Phase 2;
+  brought forward on 6 October 2026 because the PS names "urban/rural terrain")
 - **3 metrics**: detection time, classification accuracy, response correctness
 - **Difficulty**: instructor sets a base level; system adapts from the last 3 sessions
 
@@ -66,6 +67,15 @@ Key fields worth knowing:
 - All event times are **milliseconds from session start**, never wall clock.
 - `scenarioSeed` is stored per session. This gives replay, and it is the direct
   answer to the PS requirement "prevent rote learning" — the seed never repeats.
+- `scenario.mode` on each session is `procedural` (generated from the seed) or
+  `scripted` (an instructor-written `Scenario`, the PS's "scripted AND procedurally
+  generated"). A scripted scenario is never edited once saved, only deleted, so a
+  session recorded against it stays replayable. Scripted sessions are left out of
+  the adaptive rule, since their level was set, not earned.
+- `visibleFrom` on each event is when the contact first came into sight. In urban
+  terrain a contact can spawn behind a building, so `detectionLatency` is counted
+  from `visibleFrom`, not `spawnTime`. The server works it out from the scenario
+  and the building layout (`lib/terrain.js`); the scene draws that same layout.
 - `verdict` on each event is what the dashboard filters on:
   `correct | misclassified | wrong_response | false_positive | missed`
 - `scores.composite` (0–100) is the headline number. Weights are 25/35/40 across

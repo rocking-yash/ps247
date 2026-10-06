@@ -3,9 +3,9 @@ import { notFound } from 'next/navigation';
 import { Graded, Mark, TH, TD } from '@/components/dashboard/EventRow';
 import { getSessionDetail } from '@/lib/dashboard';
 import { CORRECT_RESPONSE, scoreBreakdown } from '@/lib/models';
-import { scenarioMatchesEvents } from '@/lib/scenario';
+import { sessionReplayable } from '@/lib/scenario';
 import { skillProfile, weaknessSentence, SKILL_NAMES } from '@/lib/weakness';
-import { DRONE_LABELS, RESPONSE_LABELS, VERDICT_LABELS, SCORING } from '@/lib/constants';
+import { DRONE_LABELS, RESPONSE_LABELS, VERDICT_LABELS, SCORING, describeConditions } from '@/lib/constants';
 import { formatDateTime, formatSeconds, fullName } from '@/lib/format';
 
 export const metadata = {
@@ -47,14 +47,16 @@ export default async function SessionPage({ params }) {
   const detail = await getSessionDetail(id);
   if (!detail) notFound();
 
-  const { session, trainee } = detail;
-  const lighting = session.conditions?.lighting ?? 'day';
+  const { session, trainee, script } = detail;
+  const scripted = session.scenario?.mode === 'scripted';
+  const conditions = { lighting: session.conditions?.lighting ?? 'day', terrain: session.conditions?.terrain ?? 'rural' };
+  const urban = conditions.terrain === 'urban';
   const focus = session.difficulty.focus ?? null;
-  const b = scoreBreakdown(session.events, lighting);
+  const b = scoreBreakdown(session.events, conditions);
   const stored = session.scores.composite;
-  const replayable = scenarioMatchesEvents(session.scenarioSeed, session.difficulty.level, session.events, focus);
-  const weakness = weaknessSentence(skillProfile(session.events, lighting));
-  const limits = `${b.limits.fullMs / 1000} s or faster is full marks, ${b.limits.zeroMs / 1000} s or slower is none, by ${lighting}`;
+  const replayable = sessionReplayable(session, script);
+  const weakness = weaknessSentence(skillProfile(session.events, conditions));
+  const limits = `${b.limits.fullMs / 1000} s or faster is full marks, ${b.limits.zeroMs / 1000} s or slower is none, by ${conditions.lighting}${urban ? ' in urban terrain' : ''}`;
 
   return (
     <>
@@ -78,7 +80,7 @@ export default async function SessionPage({ params }) {
       <dl className="mt-5 flex flex-wrap gap-4">
         <Fact label="Composite">{stored} of 100</Fact>
         <Fact label="Conditions">
-          <span className="capitalize">{lighting}</span>
+          <span className="capitalize">{describeConditions(conditions)}</span>
         </Fact>
         <Fact label="Level">
           {session.difficulty.level}
@@ -86,6 +88,10 @@ export default async function SessionPage({ params }) {
             {session.difficulty.setBy === 'adaptive' ? 'adaptive' : 'set by instructor'}
             {focus && `, ${SKILL_NAMES[focus].toLowerCase()} practice`}
           </span>
+        </Fact>
+        <Fact label="Scenario">
+          {scripted ? 'Scripted' : 'Procedural'}
+          {scripted && <span className="ml-2 text-sm font-medium text-body">{session.scenario.name}</span>}
         </Fact>
         <Fact label="Contacts">{b.contacts}</Fact>
       </dl>
@@ -97,6 +103,7 @@ export default async function SessionPage({ params }) {
         <p className="mt-1 max-w-prose text-sm text-body">
           Every contact that appeared, in order. Times are on the session clock, in seconds from
           the start. A tick or cross marks each graded answer.
+          {urban && ' In urban terrain a contact can appear behind a building, so latency is counted from the moment it first came into sight.'}
         </p>
         <div className={TABLE_CARD}>
           <table className="w-full min-w-[60rem] text-left">
@@ -105,6 +112,7 @@ export default async function SessionPage({ params }) {
                 <th className={`${TH} pl-4`}>Verdict</th>
                 <th className={TH}>Contact was</th>
                 <th className={`${TH} text-right`}>Appeared</th>
+                {urban && <th className={`${TH} text-right`}>In sight from</th>}
                 <th className={`${TH} text-right`}>Detected</th>
                 <th className={`${TH} text-right`}>Latency</th>
                 <th className={TH}>Classified as</th>
@@ -125,6 +133,9 @@ export default async function SessionPage({ params }) {
                     </td>
                     <td className={TD}>{DRONE_LABELS[event.droneType]}</td>
                     <td className={`${TD} whitespace-nowrap text-right`}>{clock(event.spawnTime)}</td>
+                    {urban && (
+                      <td className={`${TD} whitespace-nowrap text-right`}>{clock(event.visibleFrom ?? event.spawnTime)}</td>
+                    )}
                     <td className={`${TD} whitespace-nowrap text-right`}>
                       {detected ? clock(event.detectedAt) : (
                         <>
@@ -146,7 +157,7 @@ export default async function SessionPage({ params }) {
               })}
               {session.events.length === 0 && (
                 <tr>
-                  <td className={`${TD} pr-0`} colSpan={8}>
+                  <td className={`${TD} pr-0`} colSpan={urban ? 9 : 8}>
                     No contacts were recorded in this session.
                   </td>
                 </tr>
@@ -230,12 +241,14 @@ export default async function SessionPage({ params }) {
       <section className="mt-12">
         <h2 className="text-lg font-semibold">Scenario</h2>
         <p className="mt-1 max-w-prose text-sm text-body">
-          The seed, the level and the practice focus are what generated this session&apos;s contacts.
+          {scripted
+            ? 'Scripted: the contacts were written out by an instructor, so everyone assigned this scenario faced the same ones at the same moments.'
+            : 'Procedural: the seed, the level and the practice focus are what generated this session’s contacts.'}
         </p>
         <dl className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
           <div>
-            <dt className="text-sm font-medium text-body">Seed</dt>
-            <dd className="break-all font-semibold">{session.scenarioSeed}</dd>
+            <dt className="text-sm font-medium text-body">{scripted ? 'Scripted scenario' : 'Seed'}</dt>
+            <dd className="break-all font-semibold">{scripted ? session.scenario.name : session.scenarioSeed}</dd>
           </div>
           <div className="no-print">
             {replayable ? (
@@ -244,7 +257,9 @@ export default async function SessionPage({ params }) {
               </Link>
             ) : (
               <span className="text-sm text-body">
-                Recorded under an earlier scenario generator, so it cannot be replayed exactly.
+                {scripted
+                  ? 'This scripted scenario has since been deleted, so it cannot be replayed.'
+                  : 'Recorded under an earlier scenario generator, so it cannot be replayed exactly.'}
               </span>
             )}
           </div>

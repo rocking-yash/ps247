@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Scene from './Scene';
-import { buildScenario, newSeed } from '@/lib/scenario';
+import { buildScenario, buildScriptedScenario, newSeed } from '@/lib/scenario';
 import { TRAINEE_KEY, setStored, useStored } from '@/lib/identity';
 import { fullName } from '@/lib/format';
 import {
@@ -127,7 +127,8 @@ function NextUp({ assignment }) {
   return (
     <div className="mt-4 border-t border-rule pt-3 text-sm text-body">
       <p>
-        {assignment.levelReason} It will be by {assignment.lighting}.
+        {assignment.levelReason} It will be by {assignment.lighting}
+        {assignment.terrain === 'urban' ? ', in urban terrain' : ''}.
       </p>
       {assignment.focusReason && <p className="mt-2">{assignment.focusReason}</p>}
     </div>
@@ -197,7 +198,7 @@ function ResultPanel({ result, replay, assignment, onRestart, onRetry }) {
             <br />
           </>
         )}
-        Seed {result.scenarioSeed}
+        {result.scenarioSeed.startsWith('scripted:') ? 'Scripted scenario, no seed' : `Seed ${result.scenarioSeed}`}
       </p>
       {assignment && !replay && <NextUp assignment={assignment} />}
       <StartButton
@@ -286,7 +287,10 @@ const isOver = (record) => record.status === 'resolved' || record.status === 'mi
 export default function Simulator({ replay = null }) {
   const replayAssignment =
     replay && replay.exact
-      ? { level: replay.level, lighting: replay.lighting, focus: replay.focus, setBy: 'replay' }
+      ? {
+          level: replay.level, lighting: replay.lighting, terrain: replay.terrain, focus: replay.focus,
+          setBy: 'replay', scripted: replay.script,
+        }
       : null;
   const [phase, setPhaseState] = useState('idle'); // idle | running | saving | done | error
   const [scenario, setScenario] = useState(null);
@@ -378,9 +382,12 @@ export default function Simulator({ replay = null }) {
   }
 
   function begin() {
-    // A fresh random seed every session; with the level it fixes the scenario.
+    // A scripted scenario runs exactly as its instructor wrote it. Otherwise a
+    // fresh random seed every session; with the level it fixes the scenario.
     // A replay uses the recorded session's seed instead, so it is the same one.
-    const next = buildScenario(replay ? replay.seed : newSeed(), assignment.level, assignment.focus ?? null);
+    const next = assignment.scripted
+      ? buildScriptedScenario(assignment.scripted)
+      : buildScenario(replay ? replay.seed : newSeed(), assignment.level, assignment.focus ?? null);
     scenarioRef.current = next;
     runningRef.current = { ...assignment, traineeId };
     setRunning(assignment);
@@ -423,6 +430,7 @@ export default function Simulator({ replay = null }) {
     const { seed, drones } = scenarioRef.current;
     save({
       scenarioSeed: seed,
+      scenarioId: runningRef.current.scripted ? runningRef.current.scripted.id : undefined,
       startedAt: clock.current.wallStart,
       endedAt: new Date().toISOString(),
       completed: true,
@@ -433,7 +441,7 @@ export default function Simulator({ replay = null }) {
         setBy: replay ? undefined : runningRef.current.setBy,
         focus: runningRef.current.focus ?? null,
       },
-      conditions: { lighting: runningRef.current.lighting, terrain: 'rural' },
+      conditions: { lighting: runningRef.current.lighting, terrain: runningRef.current.terrain ?? 'rural' },
       // One event per contact, each graded on its own.
       events: drones.map((drone, i) => ({
         droneType: drone.droneType,
@@ -497,6 +505,7 @@ export default function Simulator({ replay = null }) {
         <Scene
           scenario={scenario}
           lighting={shown ? shown.lighting : 'day'}
+          terrain={shown ? shown.terrain ?? 'rural' : 'rural'}
           statuses={records.map((record) => record.status)}
           activeIndex={active ? active.index : -1}
           getElapsed={getElapsed}
@@ -511,12 +520,21 @@ export default function Simulator({ replay = null }) {
           <dl className="mt-2 border-t border-rule">
             {me && !replay && <Readout label="Trainee" value={fullName(me)} />}
             <Readout label="Elapsed" value={formatClock(elapsed)} />
-            <Readout label="Conditions" value={shown ? (shown.lighting === 'night' ? 'Night' : 'Day') : 'Pending'} />
+            <Readout
+              label="Conditions"
+              value={shown ? `${shown.lighting === 'night' ? 'Night' : 'Day'}${shown.terrain === 'urban' ? ', urban' : ''}` : 'Pending'}
+            />
             <Readout
               label="Level"
               value={shown ? `${shown.level}, ${LEVEL_SOURCE[shown.setBy]}` : 'Pending'}
             />
-            <Readout label="Practice focus" value={shown ? FOCUS_LABEL[shown.focus ?? 'none'] : 'Pending'} />
+            <Readout
+              label="Scenario"
+              value={shown ? (shown.scripted ? `Scripted: ${shown.scripted.name}` : 'Procedural') : 'Pending'}
+            />
+            {!(shown && shown.scripted) && (
+              <Readout label="Practice focus" value={shown ? FOCUS_LABEL[shown.focus ?? 'none'] : 'Pending'} />
+            )}
             {replay && <Readout label="Replay of" value={`Session of ${replay.recordedAt}`} />}
           </dl>
         </div>
@@ -524,15 +542,16 @@ export default function Simulator({ replay = null }) {
         <div className="px-5 py-5" aria-live="polite">
           {phase === 'idle' && replay && !replay.exact && (
             <p className="text-sm">
-              This session was recorded under an earlier scenario generator, so its seed no longer
-              produces the same contacts and it cannot be replayed.
+              {replay.scripted
+                ? 'This session ran a scripted scenario that has since been deleted, so it cannot be replayed.'
+                : 'This session was recorded under an earlier scenario generator, so its seed no longer produces the same contacts and it cannot be replayed.'}
             </p>
           )}
           {phase === 'idle' && replay && replay.exact && (
             <>
               <p className="text-sm">
-                This reruns a recorded session from its stored seed: the same contacts, of the same
-                types, appear at the same moments on the same paths.
+                This reruns a recorded session from its {replay.scripted ? 'scripted scenario' : 'stored seed'}:
+                the same contacts, of the same types, appear at the same moments on the same paths.
               </p>
               <p className="mt-2 text-sm text-body">
                 A replay is scored but not saved, so the original record and the trainee&apos;s
@@ -553,7 +572,9 @@ export default function Simulator({ replay = null }) {
               </p>
               <p className="mt-2 text-sm text-body">
                 Graded on how quickly you detect, how accurately you classify and whether the
-                response is correct. Not every contact is a threat. The rings on the ground are 100 m
+                response is correct. Not every contact is a threat.
+                {assignment && assignment.terrain === 'urban' && ' In urban terrain buildings hide a contact for part of its run; its clock starts when it first comes into sight.'}{' '}
+                The rings on the ground are 100 m
                 apart, measured from your post; a contact&apos;s shadow shows which it is over.
               </p>
               {assignment && <NextUp assignment={assignment} />}

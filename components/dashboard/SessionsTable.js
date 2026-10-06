@@ -1,7 +1,7 @@
 'use client';
 
 // Every session in one table: sortable by any column, filterable by unit,
-// trainee and lighting. The rows arrive from the server; sorting and
+// trainee, lighting and scenario mode. The rows arrive from the server; sorting and
 // filtering happen here, and the filters are mirrored into the address so a
 // filtered list can be linked to.
 
@@ -20,6 +20,7 @@ const COLUMNS = [
   ['trainee', 'Trainee', false, 'asc'],
   ['unit', 'Unit', false, 'asc'],
   ['lighting', 'Conditions', false, 'asc'],
+  ['scenario', 'Scenario', false, 'asc'],
   ['level', 'Level', true, 'desc'],
   ['detect', 'Detect', true, 'asc'],
   ['classify', 'Classify', true, 'asc'],
@@ -45,7 +46,7 @@ function compare(a, b, key) {
 }
 
 // sessions: rows from listSessions(), each with a ready-made dateLabel
-// initial: { unit, trainee, lighting } taken from the address, '' for "all"
+// initial: { unit, trainee, lighting, mode } taken from the address, '' for "all"
 export default function SessionsTable({ sessions, units, trainees, initial }) {
   const router = useRouter();
   const [filters, setFilters] = useState(initial);
@@ -58,7 +59,7 @@ export default function SessionsTable({ sessions, units, trainees, initial }) {
   }
 
   const setFilter = (name, value) => applyFilters({ ...filters, [name]: value });
-  const clearFilters = () => applyFilters({ unit: '', trainee: '', lighting: '' });
+  const clearFilters = () => applyFilters({ unit: '', trainee: '', lighting: '', mode: '' });
 
   function sortBy(key, firstDirection) {
     setSort((current) =>
@@ -71,10 +72,11 @@ export default function SessionsTable({ sessions, units, trainees, initial }) {
   const shown = sessions
     .filter((s) => (!filters.unit || s.unit === filters.unit)
       && (!filters.trainee || s.traineeId === filters.trainee)
-      && (!filters.lighting || s.lighting === filters.lighting))
+      && (!filters.lighting || s.lighting === filters.lighting)
+      && (!filters.mode || s.mode === filters.mode))
     .sort((a, b) => compare(a, b, sort.key) * (sort.direction === 'asc' ? 1 : -1));
 
-  const filtered = Boolean(filters.unit || filters.trainee || filters.lighting);
+  const filtered = Boolean(filters.unit || filters.trainee || filters.lighting || filters.mode);
 
   return (
     <>
@@ -105,6 +107,14 @@ export default function SessionsTable({ sessions, units, trainees, initial }) {
             <option value="night">Night</option>
           </select>
         </label>
+        <label className="flex items-center gap-2">
+          <span>Scenario</span>
+          <select value={filters.mode} onChange={(e) => setFilter('mode', e.target.value)} className={FIELD}>
+            <option value="">Scripted and procedural</option>
+            <option value="scripted">Scripted</option>
+            <option value="procedural">Procedural</option>
+          </select>
+        </label>
         {filtered && (
           <button
             type="button"
@@ -120,7 +130,7 @@ export default function SessionsTable({ sessions, units, trainees, initial }) {
       </div>
 
       <div className="relative mt-4 overflow-x-auto rounded-xl border border-rule bg-paper px-5 py-2">
-        <table className="w-full min-w-[60rem] text-left">
+        <table className="w-full min-w-[70rem] text-left">
           <thead>
             <tr>
               {COLUMNS.map(([key, heading, numeric, firstDirection], i) => {
@@ -166,7 +176,8 @@ export default function SessionsTable({ sessions, units, trainees, initial }) {
                 </td>
                 <td className={TD}>{s.trainee}</td>
                 <td className={TD}>{s.unit}</td>
-                <td className={`${TD} capitalize`}>{s.lighting}</td>
+                <td className={`${TD} capitalize`}>{s.terrain === 'urban' ? `${s.lighting}, urban` : s.lighting}</td>
+                <td className={TD}>{s.scenario}</td>
                 <td className={`${TD} text-right`}>{s.level}</td>
                 <td className={`${TD} text-right`}>{s.detect ?? '—'}</td>
                 <td className={`${TD} text-right`}>{s.classify ?? '—'}</td>

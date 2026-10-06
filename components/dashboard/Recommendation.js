@@ -2,8 +2,10 @@
 // instructor's base level. Shown beside the instructor controls so the rule
 // is visible rather than hidden. `next` comes from nextAssignment().
 
-import { LEVEL_UP_AT, LEVEL_DOWN_AT } from '@/lib/constants';
+import { LEVEL_UP_AT, LEVEL_DOWN_AT, describeConditions } from '@/lib/constants';
 import { SKILL_NAMES } from '@/lib/weakness';
+import { describeScript } from '@/lib/scripted';
+import { ClearScripted } from './ScenarioActions';
 
 const REASON = {
   raise: `${LEVEL_UP_AT} or more raises the level`,
@@ -26,12 +28,29 @@ export function SystemRecommends({ next }) {
   );
 }
 
-export function NextSession({ next }) {
+// trainee: { id, name }, so an instructor can take a scripted assignment back.
+export function NextSession({ next, trainee }) {
+  if (next.scripted) {
+    return (
+      <>
+        <span className="font-semibold">Scripted: {next.scripted.name}</span>
+        <span className="block text-sm text-body">
+          Level {next.level}, {describeConditions(next)}. {describeScript(next.scripted)}.
+        </span>
+        <span className="mt-1 block text-sm text-body">
+          Assigned by the instructor for one session. After it, generated sessions resume at
+          level {next.adaptive.level}.
+        </span>
+        <ClearScripted traineeId={trainee.id} traineeName={trainee.name} />
+      </>
+    );
+  }
+
   const held = next.recommended !== null && next.recommended < next.baseLevel;
   return (
     <>
       <span className="font-semibold">
-        Level {next.level}, {next.lighting}
+        Level {next.level}, {describeConditions(next)}
       </span>
       <span className="block text-sm text-body">
         {next.setBy === 'adaptive' && 'Above the base level, on the system’s recommendation.'}
